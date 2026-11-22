@@ -23,6 +23,7 @@ export interface BuildingPresentation {
 }
 export interface GamePresentation { paused:boolean;city:CityBuildingPresentation[];interior:BuildingPresentation;warnings:string[] }
 const kindForArea:Record<WorkArea,RoomKind>={food:'hydro',water:'pump',power:'generator',materials:'workshop',repair:'repair',guard:'security'};
+const kindForFacility:Record<Facility,RoomKind>={farm:'hydro',pump:'pump',generator:'generator',workshop:'workshop',housing:'housing',barracks:'security'};
 const areaForKind:Partial<Record<RoomKind,WorkArea>>={hydro:'food',pump:'water',generator:'power',workshop:'materials',repair:'repair',security:'guard'};
 const resourceNames:Record<keyof Stock,string>={food:'식량',water:'식수',power:'전력',materials:'자재'};
 export const cityPosition=(x:number,y:number):[number,number,number]=>[(x-2)*20,0,(y-1.5)*20];
@@ -47,7 +48,7 @@ export function presentGame(s:GameState,selected=0):GamePresentation {
   if(home&&area&&area!=='repair'&&area!=='guard') {const value=flow.production[area]-allOutput[area];active=workers.length>0;output=`기초 ${resourceNames[area]} ${Math.max(0,value).toFixed(1)}/h`;}
   else if(home&&area==='guard'){active=workers.length>0;output='실제 쉘터 경계';}
   else if(room.kind==='repair'){active=b.status==='restoring';progress=active?b.progress:null;output=active?`${b.project?.kind==='convert'?'전환':'복구'} ${Math.round(b.progress)}%`:'미가동 공간 · 확장 기능 없음';}
-  else if(!home&&room.id===toRoom(b.facility?kindForArea[FACILITIES[b.facility].resource??(b.facility==='barracks'?'guard':'repair')]:'repair').id){active=b.status==='operating';const info=flow.facilities[b.id];output=info?Object.entries(info.output).filter(([,v])=>v>0).map(([k,v])=>`${resourceNames[k as keyof Stock]} ${v.toFixed(1)}/h`).join(' · '):'';warning=info?.reason??'';}
+  else if(!home&&b.facility&&room.id===toRoom(kindForFacility[b.facility]).id){active=b.status==='operating';const info=flow.facilities[b.id];output=info?Object.entries(info.output).filter(([,v])=>v>0).map(([k,v])=>`${resourceNames[k as keyof Stock]} ${v.toFixed(1)}/h`).join(' · '):'';warning=info?.reason??'';}
   if(room.kind==='housing'){active=home||b.facility==='housing'&&b.status==='operating';output=home?'공동 생활 공간':'휴식 공간 · 독립 주거 효과 없음';}
   if(room.kind==='infirmary'){active=residents.some(p=>p.present&&p.state==='injured');output='회복 공간 · 의료 생산 없음';}
   if(room.kind==='stores')output='공용 보관 공간 · 추가 생산 없음';
