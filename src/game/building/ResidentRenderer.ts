@@ -4,6 +4,8 @@ import {residentPose} from './ResidentAnimator';
 import {moveResident,redirectMotion,type Motion} from './ResidentMovement';
 import {rect,label} from './RoomRenderer';
 const uniform={farmer:0x8f9d6f,engineer:0xc3ad75,scavenger:0x879d9b,guard:0x798978};
+// 화면 전환 동안만 표시 위치를 보존한다. 게임 저장에는 쓰지 않으며 캠페인 변경 시 폐기한다.
+const memory=new Map<string,{motion:Motion;destination:string;phase:number}>();let campaign='';
 export class ResidentRenderer {
  readonly container=new Container();private body=new Container();private leftLeg=new Container();private rightLeg=new Container();private leftArm=new Container();private rightArm=new Container();private selection=new Graphics();private gear=new Graphics();private name:Text;private phase:number;private current:ResidentPresentation;private destination='';private motion:Motion;private patrol=0;private departed=false;private chosen=false;
  constructor(person:ResidentPresentation,private model:BuildingPresentation,onSelect:(id:string)=>void){
@@ -13,7 +15,8 @@ export class ResidentRenderer {
   const torso=new Graphics();torso.roundRect(-8,-36,16,22,3).fill(shirt);rect(torso,-7,-25,14,5,0x58664e);rect(torso,-6,-19,12,3,0x302e27);rect(torso,-5,-34,3,13,0xa5ae8b);rect(torso,3,-32,3,6,0x586750);this.body.addChild(torso);
   for(const [limb,x] of [[this.leftArm,-9],[this.rightArm,8]] as const){limb.position.set(x,-33);const g=new Graphics();g.roundRect(-3,0,6,12,2).fill(shirt);rect(g,-2,11,4,6,skin);limb.addChild(g);this.body.addChild(limb);}
   const head=new Graphics();head.roundRect(-6,-49,12,14,4).fill(skin);head.poly([-6,-43,-6,-50,-3,-53,4,-52,7,-48,6,-45,0,-49,-3,-47]).fill(seed%3===0?0x807f67:0x393b30);rect(head,3,-44,2,2,0x29342c);rect(head,5,-40,3,3,skin);if(person.role==='engineer'){head.roundRect(-7,-52,15,6,3).fill(0xc2b47f);rect(head,-8,-48,18,2,0xd0bd80);}this.body.addChild(head,this.gear);
-  this.name=label(person.name,-20,-67,9,0xe6dfbb);this.name.visible=false;this.container.addChild(this.name);this.container.eventMode='static';this.container.cursor='pointer';this.container.on('pointertap',e=>{e.stopPropagation();onSelect(this.current.id);});this.container.on('pointerover',()=>this.name.visible=true);this.container.on('pointerout',()=>this.name.visible=this.chosen);this.update(person,model);this.draw(0,true);
+  this.name=label(person.name,-20,-67,9,0xe6dfbb);this.name.visible=false;this.container.addChild(this.name);this.container.eventMode='static';this.container.cursor='pointer';this.container.on('pointertap',e=>{e.stopPropagation();onSelect(this.current.id);});this.container.on('pointerover',()=>this.name.visible=true);this.container.on('pointerout',()=>this.name.visible=this.chosen);
+  if(campaign!==model.campaignId){memory.clear();campaign=model.campaignId;}const remembered=memory.get(`${model.id}:${person.id}`);if(remembered){this.motion={...remembered.motion,route:[...remembered.motion.route]};this.destination=remembered.destination;this.phase=remembered.phase;}this.update(person,model);this.draw(0,true);
  }
  update(person:ResidentPresentation,model:BuildingPresentation){this.current=person;this.model=model;this.departed=!person.present;const target=person.present?person.roomId:model.layout.entryNode;if(target!==this.destination){this.destination=target;const seed=[...person.id].reduce((n,c)=>n+c.charCodeAt(0),0);this.motion=redirectMotion(this.motion,model.layout,target,person.present?(seed%5-2)*24:0);this.patrol=0;}}
  select(id:string){this.chosen=id===this.current.id;this.name.visible=this.chosen;this.selection.clear();if(this.chosen)this.selection.ellipse(0,-1,16,5).stroke({color:0xe3d7a6,width:2});}
@@ -29,5 +32,7 @@ export class ResidentRenderer {
   if(state==='working'&&this.current.area==='power'){this.gear.moveTo(10,-20).lineTo(22,-34).stroke({color:0xced0ae,width:3});}
  }
  get id(){return this.current.id;} get walking(){return this.motion.walking&&this.container.visible;} get active(){return this.container.visible;}
+ get state():AnimationState{return this.motion.walking?'walking':this.current.state;}
+ remember(){if(memory.size>500)memory.delete(memory.keys().next().value!);memory.set(`${this.model.id}:${this.current.id}`,{motion:{...this.motion,route:[...this.motion.route]},destination:this.destination,phase:this.phase});}
  destroy(){this.container.destroy({children:true});}
 }

@@ -18,7 +18,7 @@ export interface RoomPresentation {
  id:string;kind:RoomKind;label:string;active:boolean;workers:string[];output:string;warning:string;progress:number|null;
 }
 export interface BuildingPresentation {
- id:number;name:string;status:BuildingStatus;statusName:string;facility:string;accessible:boolean;representative:boolean;
+ campaignId:string;id:number;name:string;status:BuildingStatus;statusName:string;facility:string;accessible:boolean;representative:boolean;
  layout:BuildingLayout;rooms:RoomPresentation[];residents:ResidentPresentation[];offsite:number;paused:boolean;progress:number;warning:string;
 }
 export interface GamePresentation { paused:boolean;city:CityBuildingPresentation[];interior:BuildingPresentation;warnings:string[] }
@@ -31,7 +31,7 @@ export function presentGame(s:GameState,selected=0):GamePresentation {
  const flow=economy(s),paused=!s.clock.speed||s.ended||s.pendingSuccession;
  const city=s.buildings.map(b=>{
   const info=flow.facilities[b.id],owned=b.owner==='player';
-  return {id:b.id,name:b.status==='unknown'?'미탐사 구조물':b.name,type:b.type,position:cityPosition(b.x,b.y),status:b.status,statusName:b.project?.kind==='convert'?'시설 전환 중':STATUS_NAMES[b.status],owner:owned?'새벽 공동체':s.factions.find(f=>f.id===b.owner)?.name??'무주지',owned,known:b.status!=='unknown',reachable:s.buildings.some(a=>a.owner==='player'&&Math.abs(a.x-b.x)+Math.abs(a.y-b.y)===1),facility:b.facility,progress:b.progress,condition:b.structure,active:b.status==='operating',powered:b.id===0?flow.livingConsumption.power>0:!!info&&(info.powerDemand===0||info.powerUsed>0),workerCount:info?.workers.length??(b.id===0?Object.values(flow.assignments).filter(a=>a?.building===null).length:0),warning:info?.reason??'',accent:owned?'#98c1a1':s.factions.find(f=>f.id===b.owner)?.color??'#a2a08d'};
+  return {id:b.id,name:b.status==='unknown'?'미탐사 구조물':b.name,type:b.type,position:cityPosition(b.x,b.y),status:b.status,statusName:b.project?.kind==='convert'?'시설 전환 중':STATUS_NAMES[b.status],owner:owned?'새벽 공동체':s.factions.find(f=>f.id===b.owner)?.name??'무주지',owned,known:b.status!=='unknown',reachable:s.buildings.some(a=>a.owner==='player'&&Math.abs(a.x-b.x)+Math.abs(a.y-b.y)===1),facility:b.facility,progress:b.progress,condition:b.structure,active:b.status==='operating',powered:b.id===0?flow.livingConsumption.power>0:!!info&&(info.powerDemand===0?flow.livingConsumption.power>0:info.powerUsed>0),workerCount:info?.workers.length??(b.id===0?Object.values(flow.assignments).filter(a=>a?.building===null).length:0),warning:info?.reason??'',accent:owned?'#98c1a1':s.factions.find(f=>f.id===b.owner)?.color??'#a2a08d'};
  });
  const b=s.buildings[selected]??s.buildings[0],layout=createBuildingLayout(b.id,b.type),accessible=b.owner==='player',home=b.id===0;
  const allOutput=Object.values(flow.facilities).reduce((sum,f)=>{for(const k of Object.keys(sum) as (keyof Stock)[])sum[k]+=f.output[k];return sum;},{food:0,water:0,power:0,materials:0});
@@ -49,10 +49,10 @@ export function presentGame(s:GameState,selected=0):GamePresentation {
   else if(home&&area==='guard'){active=workers.length>0;output='실제 쉘터 경계';}
   else if(room.kind==='repair'){active=b.status==='restoring';progress=active?b.progress:null;output=active?`${b.project?.kind==='convert'?'전환':'복구'} ${Math.round(b.progress)}%`:'미가동 공간 · 확장 기능 없음';}
   else if(!home&&b.facility&&room.id===toRoom(kindForFacility[b.facility]).id){active=b.status==='operating';const info=flow.facilities[b.id];output=info?Object.entries(info.output).filter(([,v])=>v>0).map(([k,v])=>`${resourceNames[k as keyof Stock]} ${v.toFixed(1)}/h`).join(' · '):'';warning=info?.reason??'';}
-  if(room.kind==='housing'){active=home||b.facility==='housing'&&b.status==='operating';output=home?'공동 생활 공간':'휴식 공간 · 독립 주거 효과 없음';}
+  if(room.kind==='housing'){active=home||b.facility==='housing'&&b.status==='operating';output=home?'공동 생활 공간':active?'실제 주거 시설 · 공동체 수용력 반영':'미가동 생활 공간';}
   if(room.kind==='infirmary'){active=residents.some(p=>p.present&&p.state==='injured');output='회복 공간 · 의료 생산 없음';}
   if(room.kind==='stores')output='공용 보관 공간 · 추가 생산 없음';
   return {id:room.id,kind:room.kind,label:room.label,active:accessible&&active,workers,output,warning,progress};
  });
- return {paused,city,interior:{id:b.id,name:b.name,status:b.status,statusName:b.project?.kind==='convert'?'시설 전환 중':STATUS_NAMES[b.status],facility:b.facility?FACILITIES[b.facility].name:'미지정',accessible,representative:home,layout,rooms,residents,offsite:home?residents.filter(p=>!p.present).length:0,paused,progress:b.progress,warning:flow.facilities[b.id]?.reason??''},warnings:flow.warnings};
+ return {paused,city,interior:{campaignId:s.campaignId,id:b.id,name:b.name,status:b.status,statusName:b.project?.kind==='convert'?'시설 전환 중':STATUS_NAMES[b.status],facility:b.facility?FACILITIES[b.facility].name:'미지정',accessible,representative:home,layout,rooms,residents,offsite:home?residents.filter(p=>!p.present).length:0,paused,progress:b.progress,warning:flow.facilities[b.id]?.reason??''},warnings:flow.warnings};
 }
