@@ -1,0 +1,315 @@
+.city-foundation {
+  position: absolute;
+  inset: 0;
+}
+.city-foundation[data-covered="true"] {
+  pointer-events: none;
+}
+.city-foundation[data-covered="true"] .city-view > :not(.city-canvas) {
+  visibility: hidden;
+}
+.overlay-host {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  outline: none;
+  pointer-events: none;
+}
+.overlay-host[data-open="false"] .overlay-surface {
+  display: contents;
+}
+.overlay-host[data-open="false"] .world-navigation,
+.overlay-host[data-open="false"] .world-alerts,
+.overlay-host[data-open="false"] .world-offline,
+.overlay-host[data-open="false"] .world-decision {
+  pointer-events: auto;
+}
+.overlay-host[data-open="true"] {
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  overscroll-behavior: contain;
+}
+.overlay-host[data-open="true"] .overlay-surface {
+  position: absolute;
+  inset: 5vh 5vw;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #15241ef7;
+  border: 1px solid #82916b88;
+  border-radius: 7px;
+  box-shadow: 0 20px 90px #0009;
+  animation: overlay-enter 180ms ease-out;
+}
+.overlay-host[data-type="management"] .overlay-surface {
+  inset: 3vh 3vw;
+}
+@keyframes overlay-enter {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.overlay-header {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: linear-gradient(100deg, #293c2d, #1a2d23);
+  border-bottom: 1px solid #60714b88;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.overlay-header > div:first-child {
+  min-width: 0;
+}
+.overlay-header span {
+  font: 9px monospace;
+  letter-spacing: 2px;
+  color: #a7b58f;
+}
+.overlay-header h1 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #d9dfc0;
+  margin: 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.overlay-header p {
+  font-size: 11px;
+  color: #a6b79d;
+  line-height: 1.6;
+}
+.overlay-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.overlay-actions button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 11px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.overlay-actions .overlay-close {
+  padding: 8px;
+  background: #304333;
+  border-color: #73845d;
+}
+.overlay-content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 7px 7px;
+}
+.overlay-content[hidden] {
+  display: none;
+}
+.overlay-host[data-open="true"] .world-hud {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 15px;
+  background: #182a20;
+  border: 0;
+  border-bottom: 1px solid #586c4d66;
+  border-radius: 7px 7px 0 0;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+.overlay-host[data-open="true"] .world-brand {
+  display: none;
+}
+.overlay-host[data-open="true"] .world-stock {
+  display: flex;
+  padding: 5px 10px;
+  gap: 18px;
+  background: none;
+  border: 0;
+}
+.overlay-host[data-open="true"] .world-stock b {
+  font-size: 19px;
+}
+.overlay-host[data-open="true"] .world-clock {
+  padding: 3px 6px;
+  margin-left: auto;
+}
+.overlay-host[data-open="true"] .world-alerts {
+  position: relative;
+  top: auto;
+  right: auto;
+  max-width: none;
+  margin: 6px 14px;
+  font-size: 10px;
+  padding: 7px 10px;
+  flex-shrink: 0;
+}
+.overlay-content .management-view {
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  grid-template-rows: 1fr;
+  background: #15241e;
+}
+.overlay-content .management-view::before {
+  display: none;
+}
+.overlay-content .management-view .app-shell {
+  min-height: 100%;
+}
+.overlay-content .building-title {
+  display: none;
+}
+.overlay-content .interior-lists {
+  top: 12px;
+  right: 14px;
+}
+.overlay-content .interior-lists details {
+  max-height: 50vh;
+}
+.overlay-content .interior-controls {
+  bottom: 25px;
+}
+.overlay-content .interior-caption {
+  bottom: 10px;
+}
+.overlay-content .interior-inspector {
+  bottom: 82px;
+}
+.overlay-content .world-loading {
+  inset: 70px 15px 70px;
+}
+@media (max-width: 900px) {
+  .overlay-host[data-open="true"] .overlay-surface {
+    inset: 3vh 3vw;
+  }
+  .overlay-host[data-type="management"] .overlay-surface {
+    inset: 2vh 2vw;
+  }
+  .overlay-header {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .overlay-header h1 {
+    font-size: 18px;
+  }
+  .overlay-actions button {
+    font-size: 10px;
+    padding: 8px;
+  }
+  .overlay-host[data-open="true"] .world-hud {
+    flex-wrap: nowrap;
+  }
+  .overlay-host[data-open="true"] .world-stock {
+    order: 0;
+    gap: 10px;
+  }
+  .overlay-host[data-open="true"] .world-stock small {
+    font-size: 10px;
+  }
+  .overlay-host[data-open="true"] .world-stock b {
+    font-size: 17px;
+  }
+}
+@media (max-width: 620px) {
+  .overlay-host[data-open="true"] .overlay-surface,
+  .overlay-host[data-type="management"] .overlay-surface {
+    inset: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  .overlay-host[data-open="true"] .world-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 5px 8px;
+    border-radius: 0;
+  }
+  .overlay-host[data-open="true"] .world-stock {
+    width: auto;
+    flex: 1;
+    gap: 10px;
+    padding: 3px 0;
+    justify-content: space-around;
+  }
+  .overlay-host[data-open="true"] .world-stock span {
+    gap: 4px;
+  }
+  .overlay-host[data-open="true"] .world-clock {
+    margin-left: auto;
+    padding: 2px 3px;
+  }
+  .overlay-host[data-open="true"] .world-clock time {
+    font-size: 10px;
+  }
+  .overlay-host[data-open="true"] .world-speeds button {
+    width: 23px;
+    height: 26px;
+  }
+  .overlay-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 9px 10px;
+  }
+  .overlay-header > div:first-child {
+    max-width: calc(100% - 30px);
+  }
+  .overlay-header h1 {
+    font-size: 17px;
+  }
+  .overlay-header p {
+    font-size: 10px;
+  }
+  .overlay-actions {
+    width: 100%;
+    padding-right: 30px;
+    flex-wrap: wrap;
+  }
+  .overlay-actions .overlay-close {
+    position: absolute;
+    right: 8px;
+    top: 10px;
+  }
+  .overlay-actions button {
+    padding: 7px 8px;
+  }
+  .overlay-content {
+    border-radius: 0;
+  }
+  .overlay-content .interior-lists {
+    right: 10px;
+    top: 8px;
+  }
+  .overlay-content .interior-inspector {
+    width: 245px;
+    left: 10px;
+    bottom: 93px;
+  }
+  .overlay-content .interior-controls {
+    bottom: 40px;
+  }
+  .overlay-content .renderer-stats {
+    bottom: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay-host .overlay-surface {
+    animation: none !important;
+  }
+}

@@ -144,7 +144,7 @@ export class BuildingScene {
     this.resizeViewport();
     const w = this.host.clientWidth,
       h = this.host.clientHeight,
-      top = w < 900 ? 235 : 180,
+      top = w < 620 ? 70 : 45,
       scale = Math.min(
         (w - 36) / this.model.layout.width,
         (h - top - 65) / this.model.layout.height,

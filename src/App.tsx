@@ -505,6 +505,7 @@ export default function App() {
       onSelect={setSelected}
       onManageBuilding={() => setTab("map")}
       onOpenGuide={() => setHelp(true)}
+      onDismissDialog={() => {if(help){setHelp(false);return true;}if(reset){setReset(false);return true;}return false;}}
       notice={notice}
       saveError={saveError}
     >

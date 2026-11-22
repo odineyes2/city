@@ -1,8 +1,18 @@
-import { useRef, useEffect, useCallback, type ComponentRef } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  type ComponentRef,
+} from "react";
 import { MapControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3,MOUSE } from "three";
-const mouseButtons={LEFT:MOUSE.PAN,MIDDLE:MOUSE.DOLLY,RIGHT:MOUSE.ROTATE};
+import { Vector3, MOUSE } from "three";
+const mouseButtons = {
+  LEFT: MOUSE.PAN,
+  MIDDLE: MOUSE.DOLLY,
+  RIGHT: MOUSE.ROTATE,
+};
 import type { ViewSession } from "../ViewSession";
 export type CameraAction =
   | "overview"
@@ -27,10 +37,12 @@ export default function CityCamera({
   intent,
   focus,
   session,
+  active = true,
 }: {
   intent: CameraIntent;
   focus: [number, number, number];
   session?: ViewSession;
+  active?: boolean;
 }) {
   const ref = useRef<ComponentRef<typeof MapControls>>(null),
     goal = useRef<{ target: Vector3; zoom: number } | null>(null),
@@ -45,8 +57,10 @@ export default function CityCamera({
     };
     if (session) session.cityCamera = snapshot;
     gl.domElement.dataset.camera = JSON.stringify(snapshot);
-  },[camera,gl,session]);
-  const start=useCallback(()=>{goal.current=null;},[]);
+  }, [camera, gl, session]);
+  const start = useCallback(() => {
+    goal.current = null;
+  }, []);
   useEffect(() => {
     const c = ref.current;
     if (c) {
@@ -56,11 +70,34 @@ export default function CityCamera({
         camera.zoom = saved.zoom;
         camera.updateProjectionMatrix();
         c.target.set(...saved.target);
-      } else c.target.set(-40, 0, -30);
+      } else {
+        camera.position.set(10, 90, 35);
+        camera.zoom = 6.1;
+        camera.updateProjectionMatrix();
+        c.target.set(-40, 0, -30);
+      }
       c.update();
       remember();
     }
-  }, []);
+  }, [session]);
+  useLayoutEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    if (!active) {
+      goal.current = null;
+      const position = camera.position.clone(),
+        target = c.target.clone(),
+        zoom = camera.zoom;
+      c.enableDamping = false;
+      c.update();
+      camera.position.copy(position);
+      c.target.copy(target);
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+      c.update();
+      remember();
+    } else c.enableDamping = true;
+  }, [active, camera, remember]);
   useEffect(() => {
     if (intent.serial === 0) return;
     const c = ref.current;
@@ -120,11 +157,12 @@ export default function CityCamera({
       );
     camera.position.add(correction);
     c.target.add(correction);
-    if(correction.lengthSq()>1e-10)c.update();
+    if (correction.lengthSq() > 1e-10) c.update();
   });
   return (
     <MapControls
       ref={ref}
+      enabled={active}
       domElement={gl.domElement}
       mouseButtons={mouseButtons}
       makeDefault

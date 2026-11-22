@@ -1,4 +1,10 @@
-import { Component, useCallback, useState,useRef, type ReactNode } from "react";
+import {
+  Component,
+  useCallback,
+  useState,
+  useRef,
+  type ReactNode,
+} from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   MapPin,
@@ -23,9 +29,17 @@ import { ActionButton } from "../../Management";
 import { visualDiagnostics, type RenderMetrics } from "../performance";
 import RendererStats from "../hud/RendererStats";
 import "./city.css";
-import {PointerGesture} from './CityInteraction';
-const cameraOptions={position:[10,90,35] as [number,number,number],zoom:6.1,near:.5,far:400};
-const glOptions={antialias:true,powerPreference:'high-performance' as const};
+import { PointerGesture } from "./CityInteraction";
+const cameraOptions = {
+  position: [10, 90, 35] as [number, number, number],
+  zoom: 6.1,
+  near: 0.5,
+  far: 400,
+};
+const glOptions = {
+  antialias: true,
+  powerPreference: "high-performance" as const,
+};
 class SceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
   { failed: boolean }
@@ -49,6 +63,7 @@ export default function CityView({
   onView,
   onManageBuilding,
   session,
+  active = true,
   presentation,
 }: WorldProps & { presentation: GamePresentation }) {
   const [supported] = useState(() => supportsWebGL()),
@@ -57,7 +72,7 @@ export default function CityView({
       action: "overview",
       serial: 0,
     });
-  const gesture=useRef(new PointerGesture());
+  const gesture = useRef(new PointerGesture());
   const report = useCallback((m: RenderMetrics) => setMetrics(m), []),
     b = presentation.city[selected] ?? presentation.city[0],
     raw = game.buildings[b.id];
@@ -75,19 +90,37 @@ export default function CityView({
     </div>
   );
   return (
-    <div className="city-view" data-testid="city-view">
+    <div className="city-view" data-testid="city-view" data-rendering={active}>
       {supported ? (
         <SceneBoundary fallback={fallback}>
           <div
             className="city-canvas"
-            onContextMenu={e=>e.preventDefault()}
-            onPointerDownCapture={e=>gesture.current.down(e.clientX,e.clientY)}
-            onPointerMoveCapture={e=>{if(e.buttons)gesture.current.move(e.clientX,e.clientY);}}
-            onPointerUpCapture={e=>gesture.current.move(e.clientX,e.clientY)}
-            onClickCapture={e=>{if(gesture.current.dragged){e.preventDefault();e.stopPropagation();}}}
-            tabIndex={0}
+            onContextMenu={(e) => e.preventDefault()}
+            onPointerDownCapture={(e) =>
+              gesture.current.down(e.clientX, e.clientY)
+            }
+            onPointerMoveCapture={(e) => {
+              if (e.buttons) gesture.current.move(e.clientX, e.clientY);
+            }}
+            onPointerUpCapture={(e) =>
+              gesture.current.move(e.clientX, e.clientY)
+            }
+            onClickCapture={(e) => {
+              if (gesture.current.dragged) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+            tabIndex={active ? 0 : -1}
             aria-label="3D 도시 · 왼쪽 드래그 이동, 오른쪽 드래그 회전, 휠 줌"
             onKeyDown={(e) => {
+              if (
+                !active ||
+                (e.target as HTMLElement).closest(
+                  'input,textarea,select,[contenteditable="true"]',
+                )
+              )
+                return;
               const keys: Record<string, CameraAction> = {
                 ArrowLeft: "left",
                 ArrowRight: "right",
@@ -97,7 +130,10 @@ export default function CityView({
                 "-": "zoom-out",
                 f: "focus",
                 F: "focus",
-                q:'rotate-left',Q:'rotate-left',e:'rotate-right',E:'rotate-right',
+                q: "rotate-left",
+                Q: "rotate-left",
+                e: "rotate-right",
+                E: "rotate-right",
               };
               if (keys[e.key]) {
                 e.preventDefault();
@@ -106,6 +142,7 @@ export default function CityView({
             }}
           >
             <Canvas
+              frameloop={active ? "always" : "never"}
               shadows="percentage"
               orthographic
               camera={cameraOptions}
@@ -119,6 +156,7 @@ export default function CityView({
                 intent={intent}
                 onMetrics={report}
                 session={session}
+                active={active}
               />
             </Canvas>
           </div>

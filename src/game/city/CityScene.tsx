@@ -19,6 +19,7 @@ export default function CityScene({
   intent,
   onMetrics,
   session,
+  active = true,
 }: {
   presentation: GamePresentation;
   selected: number;
@@ -26,6 +27,7 @@ export default function CityScene({
   intent: CameraIntent;
   onMetrics: (m: RenderMetrics) => void;
   session?: ViewSession;
+  active?: boolean;
 }) {
   const { gl } = useThree(),
     meter = useMemo(() => new FrameMeter("three"), []);
@@ -72,11 +74,14 @@ export default function CityScene({
           key={b.id}
           building={b}
           selected={selected === b.id}
-          paused={presentation.paused}
+          paused={presentation.paused || !active}
           onSelect={onSelect}
         />
       ))}
-      <CityEffects buildings={presentation.city} paused={presentation.paused} />
+      <CityEffects
+        buildings={presentation.city}
+        paused={presentation.paused || !active}
+      />
       <pointLight
         position={[
           selectedBuilding.position[0],
@@ -91,6 +96,7 @@ export default function CityScene({
         intent={intent}
         focus={selectedBuilding.position}
         session={session}
+        active={active}
       />
     </>
   );

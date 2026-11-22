@@ -1,6 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
-export const camera=async(page:Page)=>JSON.parse((await page.locator('.city-canvas canvas').getAttribute('data-camera'))!);
-export async function drag(page:Page,button:'left'|'right',dx=130,dy=45){await page.mouse.move(760,350);await page.mouse.down({button});for(let i=1;i<=15;i++){await page.mouse.move(760+dx*i/15,350+dy*i/15);await page.waitForTimeout(30);}await page.mouse.up({button});await page.waitForTimeout(350);}
+import {camera,drag} from './helpers';
 test('실제 왼쪽/오른쪽 드래그와 휠, 렌더 갱신 이후 입력',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/',{waitUntil:'domcontentloaded'});await page.locator('.city-canvas canvas[data-camera]').waitFor();
  const before=await camera(page),selected=await page.locator('.selection-heading').textContent();await drag(page,'left');const pan=await camera(page);expect(pan.target).not.toEqual(before.target);expect(await page.locator('.selection-heading').textContent()).toBe(selected);

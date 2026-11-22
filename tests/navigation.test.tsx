@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import {
   cleanup,
   fireEvent,
@@ -34,7 +34,43 @@ vi.mock("../src/game/building/BuildingView", () => ({
     <p>내부 건물 ID {selected}</p>
   ),
 }));
-afterEach(cleanup);
+beforeEach(() => {
+  vi.spyOn(window.history, "back").mockImplementation(() =>
+    window.dispatchEvent(new PopStateEvent("popstate", { state: null })),
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+function go(name: string) {
+  const root = document.querySelector("[data-game-view]")!;
+  const view = root.getAttribute("data-game-view");
+  if (
+    (name === "도시" && view === "city") ||
+    (name === "관리" && view === "management") ||
+    (name === "건물 내부" && view === "building")
+  )
+    return;
+  const label =
+    view === "city"
+      ? name
+      : name === "도시"
+        ? "도시로 돌아가기"
+        : name === "건물 내부"
+          ? "건물"
+          : name;
+  const control =
+    view === "city"
+      ? screen.getByRole("navigation", { name: "게임 화면" })
+      : screen.getByRole("banner", { name: "오버레이 제어" });
+  fireEvent.click(
+    within(control).getByRole("button", {
+      name: name === "건물 내부" && view !== "city" ? /건물/ : label,
+    }),
+  );
+}
+
 function Harness({ initialSelected = 0 }: { initialSelected?: number } = {}) {
   const [game, setGame] = useState(() => newGame(727, 1000)),
     [selected, onSelect] = useState(initialSelected);
@@ -75,12 +111,12 @@ describe("3개 화면의 공유 상태", () => {
   it("화면 변경 뒤 시간·마지막 선택을 유지하고 관리에서 내부로 복귀한다", async () => {
     render(<Harness />);
     fireEvent.click(screen.getByLabelText("1시간 진행"));
-    fireEvent.click(screen.getByRole("button", { name: "관리" }));
+    go("관리");
     expect(screen.getByText("운영실 시간 1")).toBeTruthy();
     fireEvent.click(screen.getByText("운영실에서 건물 변경"));
-    fireEvent.click(screen.getByRole("button", { name: "건물 내부" }));
+    go("건물 내부");
     expect(await screen.findByText("내부 건물 ID 1")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "도시" }));
+    go("도시");
     await waitFor(() =>
       expect(screen.getByText("도시 건물 선택")).toBeTruthy(),
     );
@@ -90,9 +126,6 @@ describe("3개 화면의 공유 상태", () => {
 describe("공통 셸과 관리 복귀 회귀", () => {
   it("전역 내비게이션·HUD·화면 속성이 모든 화면에서 하나이며 관리 입력을 보존한다", async () => {
     const { container } = render(<Harness />);
-    const nav = () => screen.getByRole("navigation", { name: "게임 화면" });
-    const go = (name: string) =>
-      fireEvent.click(within(nav()).getByRole("button", { name }));
     go("관리");
     fireEvent.change(screen.getByLabelText("관리 작업 입력"), {
       target: { value: "진행 중인 관리 작업" },
@@ -101,7 +134,7 @@ describe("공통 셸과 관리 복귀 회귀", () => {
     for (const name of ["도시", "건물 내부", "관리"]) {
       go(name);
       expect(
-        screen.getAllByRole("navigation", { name: "게임 화면" }),
+        container.querySelectorAll('[aria-label="게임 화면"]'),
       ).toHaveLength(1);
       expect(screen.getAllByLabelText("일시정지")).toHaveLength(1);
       expect(container.querySelectorAll("[data-game-view]")).toHaveLength(1);
@@ -125,11 +158,7 @@ describe("공통 셸과 관리 복귀 회귀", () => {
     for (const pair of pairs)
       for (let i = 0; i < 10; i++)
         for (const view of pair) {
-          fireEvent.click(
-            within(
-              screen.getByRole("navigation", { name: "게임 화면" }),
-            ).getByRole("button", { name: names[view] }),
-          );
+          go(names[view]);
           expect(
             container
               .querySelector("[data-game-view]")
@@ -143,18 +172,11 @@ describe("공통 셸과 관리 복귀 회귀", () => {
   });
   it("유효하지 않은 선택 건물은 초기 거점으로 안전하게 복귀한다", async () => {
     render(<Harness initialSelected={999} />);
-    fireEvent.click(screen.getByRole("button", { name: "건물 내부" }));
+    go("건물 내부");
     expect(await screen.findByText("내부 건물 ID 0")).toBeTruthy();
   });
   it("관리 스크롤 위치를 복귀 시 복원한다", () => {
     render(<Harness />);
-    const go = (name: string) =>
-      fireEvent.click(
-        within(screen.getByRole("navigation", { name: "게임 화면" })).getByRole(
-          "button",
-          { name },
-        ),
-      );
     go("관리");
     const scroller = screen.getByTestId("management-scroll");
     scroller.scrollTop = 420;
@@ -164,4 +186,24 @@ describe("공통 셸과 관리 복귀 회귀", () => {
     go("관리");
     expect(scroller.scrollTop).toBe(420);
   });
+});
+
+it("도시 DOM을 유지하며 Escape로 닫고 원래 열기 버튼에 포커스를 복원한다", async () => {
+  const { container } = render(<Harness />);
+  const opener = await screen.findByText("도시 건물 선택");
+  const node = opener;
+  opener.focus();
+  fireEvent.click(opener);
+  expect(await screen.findByText("내부 건물 ID 5")).toBeTruthy();
+  expect(
+    container.querySelector(".city-foundation")?.hasAttribute("inert"),
+  ).toBe(true);
+  fireEvent.keyDown(document, { key: "Escape" });
+  await waitFor(() =>
+    expect(
+      container.querySelector("[data-overlay]")?.getAttribute("data-overlay"),
+    ).toBe("none"),
+  );
+  expect(screen.getByText("도시 건물 선택")).toBe(node);
+  expect(document.activeElement).toBe(opener);
 });
