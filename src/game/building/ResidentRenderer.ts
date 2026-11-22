@@ -196,6 +196,10 @@ export class ResidentRenderer {
     this.leftArm.rotation = p.leftArm;
     this.rightArm.rotation = p.rightArm;
     this.gear.clear();
+    if (this.current.warning) {
+      this.gear.poly([-14, -57, -7, -45, -21, -45]).fill(0xc5ac70);
+      rect(this.gear, -15, -53, 2, 4, 0x283b2c);
+    }
     if (this.current.state === "injured") {
       rect(this.gear, -6, -31, 13, 4, 0xdbd6b6);
       this.gear

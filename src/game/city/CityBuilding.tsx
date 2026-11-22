@@ -40,7 +40,9 @@ function CityBuilding({
   const tint = !known
     ? "#505b51"
     : owned
-      ? "#898b71"
+      ? b.condition >= 99
+        ? "#a0a087"
+        : "#898b71"
       : b.type === "clinic"
         ? "#a19a81"
         : b.type === "substation"
@@ -52,13 +54,14 @@ function CityBuilding({
     for (let floor = 0; floor < floors; floor++)
       for (let col = 0; col < Math.floor(w / 1.7); col++) {
         if (
+          b.condition < 99 &&
           floor > floors - 2 &&
           col > 1 &&
           noise(b.id + floor * 17 + col) > 0.55
         )
           continue;
         const color =
-          b.active && b.powered && noise(col + floor * 9 + b.id) > 0.38
+          b.active && noise(col + floor * 9 + b.id) < b.powerSupply * 0.62
             ? "#d0b983"
             : noise(col + floor + b.id) > 0.5
               ? "#37473e"
@@ -84,7 +87,15 @@ function CityBuilding({
           });
       }
     return result;
-  }, [b.id, b.active, b.powered, w, h, d]);
+  }, [b.id, b.active, b.powerSupply, b.condition, w, h, d]);
+  const litWindows = useMemo(
+    () => windows.filter((i) => i.color === "#d0b983"),
+    [windows],
+  );
+  const darkWindows = useMemo(
+    () => windows.filter((i) => i.color !== "#d0b983"),
+    [windows],
+  );
   const floors = useMemo(
     () =>
       Array.from({ length: Math.max(1, Math.floor(h / 3.2)) }, (_, i) => ({
@@ -99,8 +110,14 @@ function CityBuilding({
     if (e.delta < 6) onSelect(b.id);
   };
   useFrame((_, delta) => {
-    if (!paused && roof.current && b.active && b.powered && b.workerCount > 0)
-      roof.current.rotation.y += Math.min(delta, 0.05) * 0.5;
+    if (
+      !paused &&
+      roof.current &&
+      b.active &&
+      b.activity > 0 &&
+      b.workerCount > 0
+    )
+      roof.current.rotation.y += Math.min(delta, 0.05) * 0.5 * b.activity;
   });
   const industry = ["warehouse", "workshop", "substation", "machine"].includes(
       b.type,
@@ -123,7 +140,10 @@ function CityBuilding({
         size={[w + 0.8, 0.45, d + 0.8]}
         color="#747967"
       />
-      {!open && (
+      {!open && b.condition >= 99 && (
+        <Block at={[0, h * 0.5, 0]} size={[w, h, d]} color={tint} />
+      )}
+      {!open && b.condition < 99 && (
         <>
           <Block
             at={[-w * 0.1, h * 0.42, 0]}
@@ -159,10 +179,10 @@ function CityBuilding({
       )}
       {!open && <BoxBatch items={floors} />}
       {!open && (
-        <BoxBatch
-          items={windows}
-          emissive={b.active && b.powered ? "#9c7540" : "#000000"}
-        />
+        <>
+          <BoxBatch items={darkWindows} />
+          <BoxBatch items={litWindows} emissive="#9c7540" />
+        </>
       )}
       <Block
         at={[0, 0.9, d / 2 + 0.08]}
@@ -408,6 +428,24 @@ function CityBuilding({
       )}
       {b.status === "restoring" && (
         <>
+          <Block
+            at={[-w * 0.6, 0.8, d * 0.7]}
+            size={[1.6, 1.4, 1.4]}
+            color="#93805c"
+          />
+          <Block
+            at={[0, 0.8, d * 0.75]}
+            size={[w * 0.8, 0.25, 0.15]}
+            color="#374637"
+          />
+          {b.progress > 0 && (
+            <Block
+              at={[-w * 0.4 + (w * 0.4 * b.progress) / 100, 0.8, d * 0.76]}
+              size={[(w * 0.8 * b.progress) / 100, 0.18, 0.18]}
+              color="#c9b67e"
+              emissive="#847640"
+            />
+          )}
           <BoxBatch
             items={Array.from({ length: 5 }, (_, i) => ({
               position: [-w * 0.55 + i * w * 0.275, h * 0.4, d * 0.6] as [
@@ -477,7 +515,7 @@ function CityBuilding({
           </mesh>
           <CityLabel
             name={b.name}
-            detail={`${b.owner} · ${b.statusName}`}
+            detail={`${b.owner} · ${b.statusName}${b.status === "restoring" ? ` ${Math.round(b.progress)}%` : b.warning ? " · !" : ""}`}
             height={h}
           />
         </>
@@ -496,6 +534,9 @@ export default memo(
     a.building.facility === b.building.facility &&
     a.building.progress === b.building.progress &&
     a.building.powered === b.building.powered &&
+    a.building.powerSupply === b.building.powerSupply &&
+    a.building.activity === b.building.activity &&
+    a.building.warning === b.building.warning &&
     a.building.workerCount === b.building.workerCount &&
     a.building.condition === b.building.condition,
 );

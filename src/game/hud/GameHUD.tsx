@@ -2,14 +2,17 @@ import type { Command, GameState, Speed } from "../../model";
 import { RESOURCE_NAMES } from "../../data";
 import { RESOURCES } from "../../config";
 import { Pause, Play, SkipForward } from "lucide-react";
+import type { GamePresentation } from "../presentation/GamePresentation";
 export default function GameHUD({
   game,
   act,
   step,
+  feedback,
 }: {
   game: GameState;
   act: (c: Command) => void;
   step: () => void;
+  feedback?: GamePresentation["feedback"];
 }) {
   return (
     <div className="world-hud">
@@ -19,9 +22,20 @@ export default function GameHUD({
       </div>
       <div className="world-stock">
         {RESOURCES.map((key) => (
-          <span key={key}>
+          <span
+            key={key}
+            data-shortage={!!feedback && feedback[key].unmet > 1e-8}
+            title={
+              feedback
+                ? `시간당 생산 ${feedback[key].production.toFixed(2)} · 필요 ${feedback[key].demand.toFixed(2)} · 미공급 ${feedback[key].unmet.toFixed(2)}`
+                : undefined
+            }
+          >
             <small>{RESOURCE_NAMES[key]}</small>
             <b>{game.resources[key].toFixed(0)}</b>
+            {!!feedback && feedback[key].unmet > 1e-8 && (
+              <i aria-label={`${RESOURCE_NAMES[key]} 공급 부족`}>!</i>
+            )}
           </span>
         ))}
       </div>

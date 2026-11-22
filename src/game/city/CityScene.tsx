@@ -89,7 +89,9 @@ export default function CityScene({
           selectedBuilding.position[2] + 5,
         ]}
         color="#eac580"
-        intensity={selectedBuilding.owned && selectedBuilding.powered ? 7 : 0}
+        intensity={
+          selectedBuilding.owned ? 7 * selectedBuilding.powerSupply : 0
+        }
         distance={15}
       />
       <CityCamera

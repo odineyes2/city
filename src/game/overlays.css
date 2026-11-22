@@ -313,3 +313,17 @@
     animation: none !important;
   }
 }
+
+.world-stock span[data-shortage="true"] {
+  color: #dcc084;
+}
+.world-stock span[data-shortage="true"] small {
+  color: #d0b985;
+}
+.world-stock i {
+  font-style: normal;
+  font-size: 11px;
+  border: 1px solid #b39c6b;
+  padding: 0 3px;
+  border-radius: 2px;
+}

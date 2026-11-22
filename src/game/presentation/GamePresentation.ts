@@ -7,6 +7,7 @@ import type {
   Stock,
   WorkArea,
 } from "../../model";
+import { ECONOMY } from "../../config";
 import { economy, workerEfficiency } from "../../economy";
 import { FACILITIES, STATUS_NAMES } from "../../data";
 import {
@@ -31,6 +32,8 @@ export interface CityBuildingPresentation {
   condition: number;
   active: boolean;
   powered: boolean;
+  powerSupply: number;
+  activity: number;
   workerCount: number;
   warning: string;
   accent: string;
@@ -48,6 +51,9 @@ export interface ResidentPresentation {
   role: Role;
   health: number;
   injury: number;
+  hunger: number;
+  thirst: number;
+  warning: string;
   task: string;
   area: WorkArea | null;
   roomId: string;
@@ -65,6 +71,9 @@ export interface RoomPresentation {
   output: string;
   warning: string;
   progress: number | null;
+  powerSupply: number;
+  activity: number;
+  restored: boolean;
 }
 export interface BuildingPresentation {
   campaignId: string;
@@ -88,6 +97,10 @@ export interface GamePresentation {
   city: CityBuildingPresentation[];
   interior: BuildingPresentation;
   warnings: string[];
+  feedback: Record<
+    keyof Stock,
+    { production: number; demand: number; unmet: number }
+  >;
 }
 const kindForArea: Record<WorkArea, RoomKind> = {
   food: "hydro",
@@ -126,6 +139,24 @@ export const cityPosition = (
 export function presentGame(s: GameState, selected = 0): GamePresentation {
   const flow = economy(s),
     paused = !s.clock.speed || s.ended || s.pendingSuccession;
+  const clamp = (n: number) => Math.max(0, Math.min(1, n));
+  const centralPower = clamp(
+    flow.livingConsumption.power / ECONOMY.consumption.power,
+  );
+  const supply = (id: number) => {
+    const f = flow.facilities[id];
+    return f?.powerDemand ? clamp(f.powerUsed / f.powerDemand) : centralPower;
+  };
+  const facilityActivity = (id: number) => {
+    const building = s.buildings[id],
+      f = flow.facilities[id];
+    return f && building.facility
+      ? clamp(
+          f.efficiency /
+            Math.max(0.01, building.suitability[building.facility]),
+        )
+      : 0;
+  };
   const city = s.buildings.map((b) => {
     const info = flow.facilities[b.id],
       owned = b.owner === "player";
@@ -151,13 +182,16 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
       progress: b.progress,
       condition: b.structure,
       active: b.status === "operating",
-      powered:
-        b.id === 0
-          ? flow.livingConsumption.power > 0
-          : !!info &&
-            (info.powerDemand === 0
-              ? flow.livingConsumption.power > 0
-              : info.powerUsed > 0),
+      powered: owned && supply(b.id) > 0,
+      powerSupply: owned ? supply(b.id) : 0,
+      activity:
+        b.status === "restoring"
+          ? flow.builders.length
+            ? 1
+            : 0
+          : b.id === 0
+            ? 1
+            : facilityActivity(b.id),
       workerCount: Object.values(flow.assignments).filter(
         (a) => a && a.building === (b.id === 0 ? null : b.id),
       ).length,
@@ -207,6 +241,14 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
         role: p.role,
         health: p.health,
         injury: p.injury,
+        hunger: p.hunger,
+        thirst: p.thirst,
+        warning: [
+          p.hunger > 20 ? `허기 ${Math.round(p.hunger)}` : "",
+          p.thirst > 20 ? `갈증 ${Math.round(p.thirst)}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
         task: flow.jobs[p.id] ?? p.task,
         area: assignment?.area ?? null,
         roomId: toRoom(kind).id,
@@ -253,13 +295,19 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
         warning = active && !workers.length ? "복구 인력 대기" : "";
         output = active
           ? `${b.project?.kind === "convert" ? "전환" : "복구"} ${Math.round(b.progress)}%`
-          : "미가동 공간 · 확장 기능 없음";
+          : b.structure >= 99
+            ? "예비 구획 · 독립 시설/생산 없음"
+            : "미복구 공간 · 실제 작업 미진행";
       } else if (
         !home &&
         b.facility &&
         room.id === toRoom(kindForFacility[b.facility]).id
       ) {
-        active = b.status === "operating";
+        active =
+          b.status === "operating" &&
+          (b.facility === "housing" ||
+            (!!flow.facilities[b.id]?.workers.length &&
+              flow.facilities[b.id].efficiency > 0));
         const info = flow.facilities[b.id];
         output = info
           ? Object.entries(info.output)
@@ -288,12 +336,32 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
       return {
         id: room.id,
         kind: room.kind,
-        label: room.label,
+        label:
+          room.kind === "repair" &&
+          b.structure >= 99 &&
+          b.status !== "restoring"
+            ? "예비 구획"
+            : room.label,
         active: accessible && active,
         workers,
         output,
         warning,
         progress,
+        powerSupply: accessible ? supply(b.id) : 0,
+        activity: !active
+          ? 0
+          : home
+            ? workers.reduce(
+                (n, id) =>
+                  n + workerEfficiency(s.people.find((p) => p.id === id)!),
+                0,
+              ) / Math.max(1, workers.length)
+            : room.kind === "repair"
+              ? workers.length
+                ? 1
+                : 0
+              : facilityActivity(b.id),
+        restored: b.structure >= 99 && b.status !== "restoring",
       };
     });
   return {
@@ -302,7 +370,7 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
     interior: {
       campaignId: s.campaignId,
       id: b.id,
-      name: b.name,
+      name: b.status === "unknown" ? "미탐사 구조물" : b.name,
       status: b.status,
       statusName:
         b.project?.kind === "convert" ? "시설 전환 중" : STATUS_NAMES[b.status],
@@ -321,5 +389,15 @@ export function presentGame(s: GameState, selected = 0): GamePresentation {
           : (flow.facilities[b.id]?.reason ?? ""),
     },
     warnings: flow.warnings,
+    feedback: Object.fromEntries(
+      (Object.keys(flow.unmet) as (keyof Stock)[]).map((k) => [
+        k,
+        {
+          production: flow.production[k],
+          demand: flow.demand[k],
+          unmet: flow.unmet[k],
+        },
+      ]),
+    ) as GamePresentation["feedback"],
   };
 }

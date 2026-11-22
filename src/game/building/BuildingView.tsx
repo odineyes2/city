@@ -236,7 +236,7 @@ export default function BuildingView({
                     scene.current?.focusFloor(f.index);
                   }}
                 >
-                  {r.label}
+                  {b.rooms.find((m) => m.id === r.id)?.label ?? r.label}
                   <small>
                     {b.rooms.find((m) => m.id === r.id)?.active
                       ? "가동"
@@ -293,6 +293,7 @@ export default function BuildingView({
                 }{" "}
                 · 건강 {Math.round(selectedPerson.health)} · 부상{" "}
                 {Math.round(selectedPerson.injury)}
+                {` · 허기 ${Math.round(selectedPerson.hunger)} · 갈증 ${Math.round(selectedPerson.thirst)}`}
               </p>
               <p>
                 {selectedPerson.task} ·{" "}

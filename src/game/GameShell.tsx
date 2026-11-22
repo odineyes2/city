@@ -125,7 +125,12 @@ export default function GameShell({
         onClose={close}
         onDismissDialog={onDismissDialog}
       >
-        <GameHUD game={game} act={act} step={step} />
+        <GameHUD
+          game={game}
+          act={act}
+          step={step}
+          feedback={presentation.feedback}
+        />
         <div className="global-nav-slot" hidden={!active}>
           <GameNavigation view={view} onView={onView} />
         </div>

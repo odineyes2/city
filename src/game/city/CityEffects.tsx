@@ -25,7 +25,11 @@ export default function CityEffects({
   }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   const sources = buildings.filter(
-    (b) => b.active && b.facility === "generator" && b.workerCount > 0,
+    (b) =>
+      b.active &&
+      b.facility === "generator" &&
+      b.workerCount > 0 &&
+      b.activity > 0,
   );
   useFrame((_, delta) => {
     if (paused || !ref.current) return;

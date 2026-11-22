@@ -46,6 +46,7 @@ export class RoomRenderer {
   readonly lamp = new Graphics();
   readonly activity = new Graphics();
   readonly highlight = new Graphics();
+  private repairCover = new Graphics();
   private title: Text;
   private data: RoomPresentation;
   private phase = 0;
@@ -245,7 +246,7 @@ export class RoomRenderer {
       rect(g, 235, 71, 18, 7, 0x3f5846);
       rect(g, 259, 80, 20, 40, 0x4d6352);
     }
-    this.art.addChild(this.lamp, this.activity);
+    this.art.addChild(this.repairCover, this.lamp, this.activity);
     this.container.addChild(this.highlight);
     this.title = label(layout.label, 12, 32, 11);
     this.container.addChild(this.title);
@@ -256,13 +257,27 @@ export class RoomRenderer {
   }
   update(data: RoomPresentation, selected: boolean) {
     this.data = data;
-    this.art.alpha = data.active ? 0.99 : 0.57;
+    this.art.alpha = data.active ? 0.65 + 0.34 * data.powerSupply : 0.5;
+    this.title.text = data.label;
+    this.repairCover.clear();
+    if (this.layout.kind === "repair" && data.restored) {
+      rect(this.repairCover, 48, 32, 248, 88, 0x465744);
+      rect(this.repairCover, 48, 114, 248, 6, 0x8c9475);
+      for (let x = 60; x < 280; x += 55)
+        this.repairCover
+          .moveTo(x, 34)
+          .lineTo(x, 113)
+          .stroke({ color: 0x62715a, width: 1 });
+      rect(this.repairCover, 244, 92, 35, 22, 0x8d805d);
+    }
+    this.activity.alpha = data.activity;
+    if (!data.active || !data.workers.length) this.activity.clear();
     this.lamp.clear();
-    if (data.active) {
+    if (data.active && data.powerSupply > 0) {
       this.lamp
         .poly([109, 17, 191, 17, 260, 119, 40, 119])
-        .fill({ color: 0xcdd7a0, alpha: 0.055 });
-      rect(this.lamp, 110, 10, 80, 4, 0xe0e3bb);
+        .fill({ color: 0xcdd7a0, alpha: 0.055 * data.powerSupply });
+      rect(this.lamp, 110, 10, 80 * data.powerSupply, 4, 0xe0e3bb);
     }
     this.title.alpha = data.active ? 1 : 0.65;
     this.highlight.clear();
@@ -273,7 +288,7 @@ export class RoomRenderer {
   }
   tick(dt: number, paused: boolean) {
     if (paused) return;
-    this.phase += dt;
+    this.phase += dt * this.data.activity;
     const g = this.activity;
     g.clear();
     if (!this.data.active || !this.data.workers.length) return;
