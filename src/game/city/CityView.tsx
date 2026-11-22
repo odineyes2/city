@@ -1,4 +1,4 @@
-import { Component, useCallback, useState, type ReactNode } from "react";
+import { Component, useCallback, useState,useRef, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   MapPin,
@@ -23,6 +23,9 @@ import { ActionButton } from "../../Management";
 import { visualDiagnostics, type RenderMetrics } from "../performance";
 import RendererStats from "../hud/RendererStats";
 import "./city.css";
+import {PointerGesture} from './CityInteraction';
+const cameraOptions={position:[10,90,35] as [number,number,number],zoom:6.1,near:.5,far:400};
+const glOptions={antialias:true,powerPreference:'high-performance' as const};
 class SceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
   { failed: boolean }
@@ -54,6 +57,7 @@ export default function CityView({
       action: "overview",
       serial: 0,
     });
+  const gesture=useRef(new PointerGesture());
   const report = useCallback((m: RenderMetrics) => setMetrics(m), []),
     b = presentation.city[selected] ?? presentation.city[0],
     raw = game.buildings[b.id];
@@ -76,6 +80,11 @@ export default function CityView({
         <SceneBoundary fallback={fallback}>
           <div
             className="city-canvas"
+            onContextMenu={e=>e.preventDefault()}
+            onPointerDownCapture={e=>gesture.current.down(e.clientX,e.clientY)}
+            onPointerMoveCapture={e=>{if(e.buttons)gesture.current.move(e.clientX,e.clientY);}}
+            onPointerUpCapture={e=>gesture.current.move(e.clientX,e.clientY)}
+            onClickCapture={e=>{if(gesture.current.dragged){e.preventDefault();e.stopPropagation();}}}
             tabIndex={0}
             aria-label="3D 도시 · 왼쪽 드래그 이동, 오른쪽 드래그 회전, 휠 줌"
             onKeyDown={(e) => {
@@ -88,6 +97,7 @@ export default function CityView({
                 "-": "zoom-out",
                 f: "focus",
                 F: "focus",
+                q:'rotate-left',Q:'rotate-left',e:'rotate-right',E:'rotate-right',
               };
               if (keys[e.key]) {
                 e.preventDefault();
@@ -98,14 +108,9 @@ export default function CityView({
             <Canvas
               shadows="percentage"
               orthographic
-              camera={{
-                position: [10, 90, 35],
-                zoom: 6.1,
-                near: 0.5,
-                far: 400,
-              }}
+              camera={cameraOptions}
               dpr={[1, 1.5]}
-              gl={{ antialias: true, powerPreference: "high-performance" }}
+              gl={glOptions}
             >
               <CityScene
                 presentation={presentation}

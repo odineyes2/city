@@ -1,7 +1,8 @@
-import { useRef, useEffect, type ComponentRef } from "react";
+import { useRef, useEffect, useCallback, type ComponentRef } from "react";
 import { MapControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3 } from "three";
+import { Vector3,MOUSE } from "three";
+const mouseButtons={LEFT:MOUSE.PAN,MIDDLE:MOUSE.DOLLY,RIGHT:MOUSE.ROTATE};
 import type { ViewSession } from "../ViewSession";
 export type CameraAction =
   | "overview"
@@ -34,7 +35,7 @@ export default function CityCamera({
   const ref = useRef<ComponentRef<typeof MapControls>>(null),
     goal = useRef<{ target: Vector3; zoom: number } | null>(null),
     { camera, gl } = useThree();
-  const remember = () => {
+  const remember = useCallback(() => {
     const c = ref.current;
     if (!c) return;
     const snapshot = {
@@ -44,7 +45,8 @@ export default function CityCamera({
     };
     if (session) session.cityCamera = snapshot;
     gl.domElement.dataset.camera = JSON.stringify(snapshot);
-  };
+  },[camera,gl,session]);
+  const start=useCallback(()=>{goal.current=null;},[]);
   useEffect(() => {
     const c = ref.current;
     if (c) {
@@ -118,11 +120,13 @@ export default function CityCamera({
       );
     camera.position.add(correction);
     c.target.add(correction);
-    c.update();
+    if(correction.lengthSq()>1e-10)c.update();
   });
   return (
     <MapControls
       ref={ref}
+      domElement={gl.domElement}
+      mouseButtons={mouseButtons}
       makeDefault
       enableDamping
       dampingFactor={0.12}
@@ -132,7 +136,7 @@ export default function CityCamera({
       minZoom={4}
       maxZoom={18}
       enableRotate
-      onStart={() => (goal.current = null)}
+      onStart={start}
       onChange={remember}
     />
   );
