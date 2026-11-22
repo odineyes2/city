@@ -9,3 +9,5 @@
 - 배포 시 `npm ci` → `npm run build` → PM2 앱 재시작 순서를 지킨다. DNS·공용 Cloudflare 터널 변경은 dev의 서비스 연결 기능을 사용한다.
 - 새 외부 서비스·서버 DB·게임 시스템을 임의로 확장하지 않는다. 저장은 브라우저별 localStorage와 JSON 파일이다.
 - `.env`와 키·자격 증명을 커밋하거나 로그에 출력하지 않는다. 원본 기획은 `PROJECT_SPEC.md`, 플레이 안내와 현재 한계는 `README.md`에 보관한다.
+
+- v3 공간 화면은 `src/game/`에 둔다. `GameShell`은 기존 App의 상태/시간/저장을 공유하고 `presentation/GamePresentation.ts`만 읽기 전용 투영을 계산한다. Three.js 도시와 PixiJS 내부의 GPU/리스너/루프는 화면 종료 시 정리한다. 주민의 임시 위치 캐시는 표시 계층에만 두고 저장 버전 2에는 추가하지 않는다. 검증 범위와 성능은 `docs/V3_DEVELOPMENT.md`에 기록한다.

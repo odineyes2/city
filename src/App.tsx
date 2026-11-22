@@ -501,7 +501,16 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
   return (
-    <GameShell game={game} act={act} step={()=>publish(advance(gameRef.current))} selected={selected} onSelect={setSelected} notice={notice} saveError={saveError}>
+    <GameShell
+      game={game}
+      act={act}
+      step={() => publish(advance(gameRef.current))}
+      selected={selected}
+      onSelect={setSelected}
+      onManageBuilding={() => setTab("map")}
+      notice={notice}
+      saveError={saveError}
+    >
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
@@ -1492,7 +1501,7 @@ export default function App() {
         </section>
         <footer>
           <span>
-            ASHEN CITY <b>PROTOTYPE 0.2</b>
+            ASHEN CITY <b>PROTOTYPE 0.3</b>
           </span>
           <span>
             {speed ? `${speed}× 시뮬레이션 진행 중` : "일시정지"} · 시드{" "}

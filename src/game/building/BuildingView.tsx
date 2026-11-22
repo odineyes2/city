@@ -1,27 +1,330 @@
-import {useEffect,useRef,useState} from 'react';
-import {Application} from 'pixi.js';
-import {ArrowLeft,Settings2,Plus,Minus,Expand,ArrowUp,ArrowDown,ArrowRight} from 'lucide-react';
-import type {WorldProps} from '../GameShell';
-import type {GamePresentation} from '../presentation/GamePresentation';
-import {BuildingScene} from './BuildingScene';
-import RendererStats from '../hud/RendererStats';
-import {visualDiagnostics,type RenderMetrics} from '../performance';
-import './building.css';
-export default function BuildingView({presentation,onView}:WorldProps&{presentation:GamePresentation}){
- const b=presentation.interior,host=useRef<HTMLDivElement>(null),scene=useRef<BuildingScene|null>(null),latest=useRef(b),[room,setRoom]=useState(''),[person,setPerson]=useState(''),[error,setError]=useState(''),[ready,setReady]=useState(false),[metrics,setMetrics]=useState<RenderMetrics|null>(null),[motion,setMotion]=useState(0);latest.current=b;
- useEffect(()=>{setRoom('');setPerson('');setReady(false);setError('');if(!b.accessible)return;let cancelled=false,created:BuildingScene|null=null;const app=new Application();
-  void app.init({width:host.current?.clientWidth??1000,height:host.current?.clientHeight??700,preference:'webgl',background:0x15241e,antialias:true,resolution:Math.min(window.devicePixelRatio||1,1.5),autoDensity:true}).then(()=>{if(cancelled||!host.current){app.destroy(true,{children:true});return;}host.current.appendChild(app.canvas);created=new BuildingScene(app,host.current,latest.current,{room:id=>{setRoom(id);setPerson('');},resident:id=>{setPerson(id);setRoom('');},metrics:setMetrics,motion:setMotion});scene.current=created;setReady(true);}).catch(e=>{if(!cancelled){setError('건물 그래픽을 초기화하지 못했습니다.');visualDiagnostics.errors.push(String(e));}});
-  return()=>{cancelled=true;created?.destroy();scene.current=null;};
- },[b.id,b.accessible]);
- useEffect(()=>{scene.current?.update(b,room,person);},[b,room,person]);
- const selectedRoom=b.rooms.find(r=>r.id===room),selectedPerson=b.residents.find(r=>r.id===person),visible=b.residents.filter(r=>r.present);
- return <div className="building-view" data-testid="building-view" data-building-id={b.id} data-ready={ready} data-motion-ticks={motion} data-paused={b.paused}>
-  <div className="building-canvas" ref={host} tabIndex={0} aria-label="건물 단면 · 드래그 이동, 휠 확대" onKeyDown={e=>{const d:Record<string,[number,number]>={ArrowLeft:[50,0],ArrowRight:[-50,0],ArrowUp:[0,50],ArrowDown:[0,-50]};if(d[e.key]){e.preventDefault();scene.current?.pan(...d[e.key]);}if(e.key==='+'||e.key==='=')scene.current?.zoom(1.2);if(e.key==='-')scene.current?.zoom(1/1.2);if(e.key.toLowerCase()==='f')scene.current?.fit();}}/>
-  <header className="building-title"><span>{b.representative?'REFUGE / FIVE LEVELS':'OUTPOST / FACILITY SECTION'}</span><h1>{b.name}</h1><p>{b.statusName} · {b.facility} · 현장 {visible.length}명{b.offsite>0?` / 외근 ${b.offsite}명`:''}</p></header>
-  {(!b.accessible||error)&&<div className="world-loading interior-fallback" role="alert"><h2>{error||'아직 확보하지 않은 건물입니다.'}</h2><p>점령과 복구는 기존 게임 규칙에 따라 진행합니다.</p><button onClick={()=>onView('management')}>관리 화면에서 계속</button></div>}
-  <div className="interior-controls" aria-label="건물 카메라 조작"><button onClick={()=>onView('city')}><ArrowLeft size={16}/>도시</button><button aria-label="건물 전체 보기" onClick={()=>scene.current?.fit()}><Expand size={16}/></button><button aria-label="내부 확대" onClick={()=>scene.current?.zoom(1.2)}><Plus size={16}/></button><button aria-label="내부 축소" onClick={()=>scene.current?.zoom(1/1.2)}><Minus size={16}/></button><button aria-label="내부 왼쪽 이동" onClick={()=>scene.current?.pan(60,0)}><ArrowLeft size={16}/></button><button aria-label="내부 오른쪽 이동" onClick={()=>scene.current?.pan(-60,0)}><ArrowRight size={16}/></button><button aria-label="내부 위로 이동" onClick={()=>scene.current?.pan(0,60)}><ArrowUp size={16}/></button><button aria-label="내부 아래로 이동" onClick={()=>scene.current?.pan(0,-60)}><ArrowDown size={16}/></button><button onClick={()=>onView('management')}><Settings2 size={16}/>관리</button></div>
-  <div className="interior-lists"><details><summary>층과 방</summary>{b.layout.floors.map(f=><section key={f.id}><button onClick={()=>scene.current?.focusFloor(f.index)}>{f.label} · 집중</button>{f.rooms.map(r=><button key={r.id} aria-pressed={room===r.id} onClick={()=>{setRoom(r.id);setPerson('');scene.current?.focusFloor(f.index);}}>{r.label}<small>{b.rooms.find(m=>m.id===r.id)?.active?'가동':'비가동'}</small></button>)}</section>)}</details><details><summary>현장 주민 · {visible.length}명</summary>{visible.map(p=><button key={p.id} aria-pressed={p.id===person} onClick={()=>{setPerson(p.id);setRoom('');const r=b.layout.floors.flatMap(f=>f.rooms).find(r=>r.id===p.roomId);if(r)scene.current?.focusFloor(r.floor);}}>{p.name}<small>{p.task}</small></button>)}</details></div>
-  {(selectedRoom||selectedPerson)&&<aside className="interior-inspector" aria-label="내부 선택 정보"><button className="inspector-close" aria-label="선택 정보 닫기" onClick={()=>{setPerson('');setRoom('');}}>×</button>{selectedPerson?<><span>RESIDENT / {selectedPerson.id}</span><h2>{selectedPerson.name}</h2><p>{({farmer:'농부',engineer:'기술자',scavenger:'회수자',guard:'경비'})[selectedPerson.role]} · 건강 {Math.round(selectedPerson.health)} · 부상 {Math.round(selectedPerson.injury)}</p><p>{selectedPerson.task} · {({working:'작업 배정',walking:'이동',repairing:'복구 배정',resting:'휴식',injured:'부상 · 작업 불가',idle:'대기'})[scene.current?.residentState(selectedPerson.id)??selectedPerson.state]}</p><small>표시 이동은 생산 계산을 지연시키지 않습니다.</small></>:selectedRoom&&<><span>ROOM / {selectedRoom.kind.toUpperCase()}</span><h2>{selectedRoom.label}</h2><p>{selectedRoom.active?'운영 중':'비가동 공간'} · 배정 {selectedRoom.workers.length}명</p><p>{selectedRoom.output||'현재 실제 생산 시설이 없습니다.'}</p>{selectedRoom.warning&&<p className="warning">{selectedRoom.warning}</p>}{selectedRoom.progress!==null&&<progress max={100} value={selectedRoom.progress}/>}<small>{selectedRoom.workers.map(id=>b.residents.find(p=>p.id===id)?.name).join(' · ')}</small></>}</aside>}
-  <div className="interior-caption">{b.paused?'시간·주민 활동 일시정지':'공동체 운영 중'} · 드래그 이동 / 휠 줌 / F 전체{!b.representative&&' · 공용 축소 내부도'}{b.warning&&<b>{b.warning}</b>}</div><RendererStats metrics={metrics}/>
- </div>;
+import { useEffect, useRef, useState } from "react";
+import { Application } from "pixi.js";
+import {
+  ArrowLeft,
+  Settings2,
+  Plus,
+  Minus,
+  Expand,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
+} from "lucide-react";
+import type { WorldProps } from "../GameShell";
+import type { GamePresentation } from "../presentation/GamePresentation";
+import { BuildingScene } from "./BuildingScene";
+import RendererStats from "../hud/RendererStats";
+import { visualDiagnostics, type RenderMetrics } from "../performance";
+import "./building.css";
+export default function BuildingView({
+  presentation,
+  onView,
+  onManageBuilding,
+}: WorldProps & { presentation: GamePresentation }) {
+  const b = presentation.interior,
+    host = useRef<HTMLDivElement>(null),
+    scene = useRef<BuildingScene | null>(null),
+    latest = useRef(b),
+    [room, setRoom] = useState(""),
+    [person, setPerson] = useState(""),
+    [error, setError] = useState(""),
+    [ready, setReady] = useState(false),
+    [metrics, setMetrics] = useState<RenderMetrics | null>(null),
+    [motion, setMotion] = useState(0);
+  latest.current = b;
+  useEffect(() => {
+    setRoom("");
+    setPerson("");
+    setReady(false);
+    setError("");
+    if (!b.accessible) return;
+    let cancelled = false,
+      created: BuildingScene | null = null;
+    const app = new Application();
+    void app
+      .init({
+        width: host.current?.clientWidth ?? 1000,
+        height: host.current?.clientHeight ?? 700,
+        preference: "webgl",
+        background: 0x15241e,
+        antialias: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 1.5),
+        autoDensity: true,
+      })
+      .then(() => {
+        if (cancelled || !host.current) {
+          app.destroy(true, { children: true });
+          return;
+        }
+        host.current.appendChild(app.canvas);
+        created = new BuildingScene(app, host.current, latest.current, {
+          room: (id) => {
+            setRoom(id);
+            setPerson("");
+          },
+          resident: (id) => {
+            setPerson(id);
+            setRoom("");
+          },
+          metrics: setMetrics,
+          motion: setMotion,
+        });
+        scene.current = created;
+        setReady(true);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError("건물 그래픽을 초기화하지 못했습니다.");
+          visualDiagnostics.errors.push(String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+      created?.destroy();
+      scene.current = null;
+    };
+  }, [b.id, b.accessible]);
+  useEffect(() => {
+    scene.current?.update(b, room, person);
+  }, [b, room, person]);
+  const selectedRoom = b.rooms.find((r) => r.id === room),
+    selectedPerson = b.residents.find((r) => r.id === person),
+    visible = b.residents.filter((r) => r.present);
+  return (
+    <div
+      className="building-view"
+      data-testid="building-view"
+      data-building-id={b.id}
+      data-ready={ready}
+      data-motion-ticks={motion}
+      data-paused={b.paused}
+    >
+      <div
+        className="building-canvas"
+        ref={host}
+        tabIndex={0}
+        aria-label="건물 단면 · 드래그 이동, 휠 확대"
+        onKeyDown={(e) => {
+          const d: Record<string, [number, number]> = {
+            ArrowLeft: [50, 0],
+            ArrowRight: [-50, 0],
+            ArrowUp: [0, 50],
+            ArrowDown: [0, -50],
+          };
+          if (d[e.key]) {
+            e.preventDefault();
+            scene.current?.pan(...d[e.key]);
+          }
+          if (e.key === "+" || e.key === "=") scene.current?.zoom(1.2);
+          if (e.key === "-") scene.current?.zoom(1 / 1.2);
+          if (e.key.toLowerCase() === "f") scene.current?.fit();
+        }}
+      />
+      <header className="building-title">
+        <span>
+          {b.representative
+            ? "REFUGE / FIVE LEVELS"
+            : "OUTPOST / FACILITY SECTION"}
+        </span>
+        <h1>{b.name}</h1>
+        <p>
+          {b.statusName} · {b.facility} · 현장 {visible.length}명
+          {b.offsite > 0 ? ` / 외근 ${b.offsite}명` : ""}
+        </p>
+      </header>
+      {(!b.accessible || error) && (
+        <div className="world-loading interior-fallback" role="alert">
+          <h2>{error || "아직 확보하지 않은 건물입니다."}</h2>
+          <p>점령과 복구는 기존 게임 규칙에 따라 진행합니다.</p>
+          <button onClick={() => onView("management")}>
+            관리 화면에서 계속
+          </button>
+        </div>
+      )}
+      <div className="interior-controls" aria-label="건물 카메라 조작">
+        <button onClick={() => onView("city")}>
+          <ArrowLeft size={16} />
+          도시
+        </button>
+        <button
+          aria-label="건물 전체 보기"
+          onClick={() => scene.current?.fit()}
+        >
+          <Expand size={16} />
+        </button>
+        <button aria-label="내부 확대" onClick={() => scene.current?.zoom(1.2)}>
+          <Plus size={16} />
+        </button>
+        <button
+          aria-label="내부 축소"
+          onClick={() => scene.current?.zoom(1 / 1.2)}
+        >
+          <Minus size={16} />
+        </button>
+        <button
+          aria-label="내부 왼쪽 이동"
+          onClick={() => scene.current?.pan(60, 0)}
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <button
+          aria-label="내부 오른쪽 이동"
+          onClick={() => scene.current?.pan(-60, 0)}
+        >
+          <ArrowRight size={16} />
+        </button>
+        <button
+          aria-label="내부 위로 이동"
+          onClick={() => scene.current?.pan(0, 60)}
+        >
+          <ArrowUp size={16} />
+        </button>
+        <button
+          aria-label="내부 아래로 이동"
+          onClick={() => scene.current?.pan(0, -60)}
+        >
+          <ArrowDown size={16} />
+        </button>
+        <button
+          onClick={() => {
+            onManageBuilding?.();
+            onView("management");
+          }}
+        >
+          <Settings2 size={16} />
+          관리
+        </button>
+      </div>
+      <div className="interior-lists">
+        <details>
+          <summary>층과 방</summary>
+          {b.layout.floors.map((f) => (
+            <section key={f.id}>
+              <button onClick={() => scene.current?.focusFloor(f.index)}>
+                {f.label} · 집중
+              </button>
+              {f.rooms.map((r) => (
+                <button
+                  key={r.id}
+                  aria-pressed={room === r.id}
+                  onClick={() => {
+                    setRoom(r.id);
+                    setPerson("");
+                    scene.current?.focusFloor(f.index);
+                  }}
+                >
+                  {r.label}
+                  <small>
+                    {b.rooms.find((m) => m.id === r.id)?.active
+                      ? "가동"
+                      : "비가동"}
+                  </small>
+                </button>
+              ))}
+            </section>
+          ))}
+        </details>
+        <details>
+          <summary>현장 주민 · {visible.length}명</summary>
+          {visible.map((p) => (
+            <button
+              key={p.id}
+              aria-pressed={p.id === person}
+              onClick={() => {
+                setPerson(p.id);
+                setRoom("");
+                const r = b.layout.floors
+                  .flatMap((f) => f.rooms)
+                  .find((r) => r.id === p.roomId);
+                if (r) scene.current?.focusFloor(r.floor);
+              }}
+            >
+              {p.name}
+              <small>{p.task}</small>
+            </button>
+          ))}
+        </details>
+      </div>
+      {(selectedRoom || selectedPerson) && (
+        <aside className="interior-inspector" aria-label="내부 선택 정보">
+          <button
+            className="inspector-close"
+            aria-label="선택 정보 닫기"
+            onClick={() => {
+              setPerson("");
+              setRoom("");
+            }}
+          >
+            ×
+          </button>
+          {selectedPerson ? (
+            <>
+              <span>RESIDENT / {selectedPerson.id}</span>
+              <h2>{selectedPerson.name}</h2>
+              <p>
+                {
+                  {
+                    farmer: "농부",
+                    engineer: "기술자",
+                    scavenger: "회수자",
+                    guard: "경비",
+                  }[selectedPerson.role]
+                }{" "}
+                · 건강 {Math.round(selectedPerson.health)} · 부상{" "}
+                {Math.round(selectedPerson.injury)}
+              </p>
+              <p>
+                {selectedPerson.task} ·{" "}
+                {
+                  {
+                    working: "작업 배정",
+                    walking: "이동",
+                    repairing: "복구 배정",
+                    resting: "휴식",
+                    injured: "부상 · 작업 불가",
+                    idle: "대기",
+                  }[
+                    scene.current?.residentState(selectedPerson.id) ??
+                      selectedPerson.state
+                  ]
+                }
+              </p>
+              <small>표시 이동은 생산 계산을 지연시키지 않습니다.</small>
+            </>
+          ) : (
+            selectedRoom && (
+              <>
+                <span>ROOM / {selectedRoom.kind.toUpperCase()}</span>
+                <h2>{selectedRoom.label}</h2>
+                <p>
+                  {selectedRoom.active ? "운영 중" : "비가동 공간"} · 배정{" "}
+                  {selectedRoom.workers.length}명
+                </p>
+                <p>
+                  {selectedRoom.output || "현재 실제 생산 시설이 없습니다."}
+                </p>
+                {selectedRoom.warning && (
+                  <p className="warning">{selectedRoom.warning}</p>
+                )}
+                {selectedRoom.progress !== null && (
+                  <progress max={100} value={selectedRoom.progress} />
+                )}
+                <small>
+                  {selectedRoom.workers
+                    .map((id) => b.residents.find((p) => p.id === id)?.name)
+                    .join(" · ")}
+                </small>
+              </>
+            )
+          )}
+        </aside>
+      )}
+      <div className="interior-caption">
+        {b.paused ? "시간·주민 활동 일시정지" : "공동체 운영 중"} · 드래그 이동
+        / 휠 줌 / F 전체{!b.representative && " · 공용 축소 내부도"}
+        {b.warning && <b>{b.warning}</b>}
+      </div>
+      <RendererStats metrics={metrics} />
+    </div>
+  );
 }
