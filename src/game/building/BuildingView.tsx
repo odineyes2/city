@@ -20,21 +20,34 @@ export default function BuildingView({
   presentation,
   onView,
   onManageBuilding,
+  session,
 }: WorldProps & { presentation: GamePresentation }) {
   const b = presentation.interior,
     host = useRef<HTMLDivElement>(null),
     scene = useRef<BuildingScene | null>(null),
     latest = useRef(b),
-    [room, setRoom] = useState(""),
-    [person, setPerson] = useState(""),
+    [room, setRoom] = useState(session?.interiors[b.id]?.room ?? ""),
+    [person, setPerson] = useState(session?.interiors[b.id]?.person ?? ""),
     [error, setError] = useState(""),
     [ready, setReady] = useState(false),
     [metrics, setMetrics] = useState<RenderMetrics | null>(null),
     [motion, setMotion] = useState(0);
   latest.current = b;
+  const selection = useRef({ room, person });
+  selection.current = { room, person };
+  const selectInterior = (nextRoom: string, nextPerson: string) => {
+    setRoom(nextRoom);
+    setPerson(nextPerson);
+    if (session) {
+      const entry = (session.interiors[b.id] ??= { room: "", person: "" });
+      entry.room = nextRoom;
+      entry.person = nextPerson;
+    }
+  };
+
   useEffect(() => {
-    setRoom("");
-    setPerson("");
+    setRoom(session?.interiors[b.id]?.room ?? "");
+    setPerson(session?.interiors[b.id]?.person ?? "");
     setReady(false);
     setError("");
     if (!b.accessible) return;
@@ -57,18 +70,29 @@ export default function BuildingView({
           return;
         }
         host.current.appendChild(app.canvas);
-        created = new BuildingScene(app, host.current, latest.current, {
-          room: (id) => {
-            setRoom(id);
-            setPerson("");
+        created = new BuildingScene(
+          app,
+          host.current,
+          latest.current,
+          {
+            room: (id) => {
+              selectInterior(id, "");
+            },
+            resident: (id) => {
+              selectInterior("", id);
+            },
+            metrics: setMetrics,
+            motion: setMotion,
           },
-          resident: (id) => {
-            setPerson(id);
-            setRoom("");
-          },
-          metrics: setMetrics,
-          motion: setMotion,
-        });
+          session
+            ? (session.interiors[b.id] ??= { room: "", person: "" })
+            : undefined,
+        );
+        created.update(
+          latest.current,
+          selection.current.room,
+          selection.current.person,
+        );
         scene.current = created;
         setReady(true);
       })
@@ -208,8 +232,7 @@ export default function BuildingView({
                   key={r.id}
                   aria-pressed={room === r.id}
                   onClick={() => {
-                    setRoom(r.id);
-                    setPerson("");
+                    selectInterior(r.id, "");
                     scene.current?.focusFloor(f.index);
                   }}
                 >
@@ -231,8 +254,7 @@ export default function BuildingView({
               key={p.id}
               aria-pressed={p.id === person}
               onClick={() => {
-                setPerson(p.id);
-                setRoom("");
+                selectInterior("", p.id);
                 const r = b.layout.floors
                   .flatMap((f) => f.rooms)
                   .find((r) => r.id === p.roomId);
@@ -251,8 +273,7 @@ export default function BuildingView({
             className="inspector-close"
             aria-label="선택 정보 닫기"
             onClick={() => {
-              setPerson("");
-              setRoom("");
+              selectInterior("", "");
             }}
           >
             ×

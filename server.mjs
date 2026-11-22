@@ -57,7 +57,7 @@ export function createAppServer(root = resolve(project, "dist")) {
           JSON.stringify({
             ok: true,
             app: "city",
-            version: "0.3.0",
+            version: "0.3.1",
             assets: assets.length,
           }),
           types[".json"],

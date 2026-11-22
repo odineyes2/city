@@ -3,6 +3,7 @@ import type { BuildingPresentation } from "../presentation/GamePresentation";
 import { RoomRenderer } from "./RoomRenderer";
 import { drawFloors } from "./FloorRenderer";
 import { ResidentRenderer } from "./ResidentRenderer";
+import type { InteriorSession } from "../ViewSession";
 import {
   FrameMeter,
   registerScene,
@@ -34,6 +35,7 @@ export class BuildingScene {
     private host: HTMLElement,
     private model: BuildingPresentation,
     private callbacks: SceneCallbacks,
+    private viewState?: InteriorSession,
   ) {
     this.unregister = registerScene("building");
     app.stage.addChild(this.background, this.world);
@@ -54,14 +56,24 @@ export class BuildingScene {
       this.world.addChild(renderer.container);
     }
     this.update(model);
-    this.resize = new ResizeObserver(() => this.fit());
+    this.resize = new ResizeObserver(() => {
+      if (this.disposed) return;
+      this.resizeViewport();
+      this.bound();
+    });
     this.resize.observe(host);
     host.addEventListener("wheel", this.wheel, { passive: false });
     host.addEventListener("pointerdown", this.down);
     host.addEventListener("pointermove", this.move);
     window.addEventListener("pointerup", this.up);
     app.ticker.add(this.tick);
+    const saved = viewState?.camera;
     this.fit();
+    if (saved) {
+      this.world.position.set(saved.x, saved.y);
+      this.world.scale.set(saved.scale);
+      this.bound();
+    }
   }
   update(model: BuildingPresentation, room = "", resident = "") {
     this.model = model;
@@ -116,7 +128,7 @@ export class BuildingScene {
     });
     if (m) this.callbacks.metrics(m);
   };
-  fit = () => {
+  private resizeViewport = () => {
     if (this.disposed) return;
     const w = this.host.clientWidth,
       h = this.host.clientHeight;
@@ -127,7 +139,12 @@ export class BuildingScene {
         .moveTo(0, 160 + i * 90)
         .lineTo(w, 130 + i * 90)
         .stroke({ color: 0x667554, width: 22, alpha: 0.045 });
-    const top = w < 900 ? 235 : 180,
+  };
+  fit = () => {
+    this.resizeViewport();
+    const w = this.host.clientWidth,
+      h = this.host.clientHeight,
+      top = w < 900 ? 235 : 180,
       scale = Math.min(
         (w - 36) / this.model.layout.width,
         (h - top - 65) / this.model.layout.height,
@@ -137,6 +154,7 @@ export class BuildingScene {
       (w - this.model.layout.width * this.world.scale.x) / 2,
       top,
     );
+    this.rememberCamera();
   };
   zoom = (
     factor: number,
@@ -184,6 +202,16 @@ export class BuildingScene {
       170 - this.model.layout.height * s,
       Math.min(h - 80, this.world.y),
     );
+    this.rememberCamera();
+  }
+  private rememberCamera() {
+    const camera = {
+      x: this.world.x,
+      y: this.world.y,
+      scale: this.world.scale.x,
+    };
+    if (this.viewState) this.viewState.camera = camera;
+    this.host.dataset.camera = JSON.stringify(camera);
   }
   private wheel = (e: WheelEvent) => {
     e.preventDefault();

@@ -45,6 +45,7 @@ export default function CityView({
   onSelect,
   onView,
   onManageBuilding,
+  session,
   presentation,
 }: WorldProps & { presentation: GamePresentation }) {
   const [supported] = useState(() => supportsWebGL()),
@@ -112,6 +113,7 @@ export default function CityView({
                 onSelect={onSelect}
                 intent={intent}
                 onMetrics={report}
+                session={session}
               />
             </Canvas>
           </div>

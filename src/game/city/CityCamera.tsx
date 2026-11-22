@@ -2,6 +2,7 @@ import { useRef, useEffect, type ComponentRef } from "react";
 import { MapControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
+import type { ViewSession } from "../ViewSession";
 export type CameraAction =
   | "overview"
   | "focus"
@@ -24,18 +25,38 @@ export const clampTarget = (x: number, z: number) => ({
 export default function CityCamera({
   intent,
   focus,
+  session,
 }: {
   intent: CameraIntent;
   focus: [number, number, number];
+  session?: ViewSession;
 }) {
   const ref = useRef<ComponentRef<typeof MapControls>>(null),
     goal = useRef<{ target: Vector3; zoom: number } | null>(null),
-    { camera } = useThree();
+    { camera, gl } = useThree();
+  const remember = () => {
+    const c = ref.current;
+    if (!c) return;
+    const snapshot = {
+      position: camera.position.toArray() as [number, number, number],
+      target: c.target.toArray() as [number, number, number],
+      zoom: camera.zoom,
+    };
+    if (session) session.cityCamera = snapshot;
+    gl.domElement.dataset.camera = JSON.stringify(snapshot);
+  };
   useEffect(() => {
     const c = ref.current;
     if (c) {
-      c.target.set(-40, 0, -30);
+      const saved = session?.cityCamera;
+      if (saved) {
+        camera.position.set(...saved.position);
+        camera.zoom = saved.zoom;
+        camera.updateProjectionMatrix();
+        c.target.set(...saved.target);
+      } else c.target.set(-40, 0, -30);
       c.update();
+      remember();
     }
   }, []);
   useEffect(() => {
@@ -112,6 +133,7 @@ export default function CityCamera({
       maxZoom={18}
       enableRotate
       onStart={() => (goal.current = null)}
+      onChange={remember}
     />
   );
 }

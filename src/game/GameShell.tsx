@@ -1,4 +1,11 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Command, GameState } from "../model";
 import GameNavigation, { type GameView } from "./GameNavigation";
 import GameHUD from "./hud/GameHUD";
@@ -6,6 +13,7 @@ import ManagementView from "../management/ManagementView";
 import { presentGame } from "./presentation/GamePresentation";
 import "./world.css";
 import VisualLifecycle from "./VisualLifecycle";
+import { createViewSession, type ViewSession } from "./ViewSession";
 const CityView = lazy(() => import("./city/CityView"));
 const BuildingView = lazy(() => import("./building/BuildingView"));
 export interface WorldProps {
@@ -15,6 +23,7 @@ export interface WorldProps {
   onSelect: (id: number) => void;
   onView: (view: GameView) => void;
   onManageBuilding?: () => void;
+  session?: ViewSession;
 }
 export default function GameShell({
   game,
@@ -23,6 +32,7 @@ export default function GameShell({
   selected,
   onSelect,
   onManageBuilding,
+  onOpenGuide,
   notice,
   saveError,
   children,
@@ -33,65 +43,97 @@ export default function GameShell({
   selected: number;
   onSelect: (id: number) => void;
   onManageBuilding?: () => void;
+  onOpenGuide?: () => void;
   notice: string;
   saveError: boolean;
   children: ReactNode;
 }) {
-  const [view, setView] = useState<GameView>("city"),
-    presentation = useMemo(() => presentGame(game, selected), [game, selected]);
-  if (view === "management")
-    return (
-      <ManagementView onView={setView}>
-        <VisualLifecycle />
-        {children}
-      </ManagementView>
+  const [view, setView] = useState<GameView>("city");
+  const safeSelected = game.buildings.some((b) => b.id === selected)
+    ? selected
+    : game.buildings[0].id;
+  const presentation = useMemo(
+    () => presentGame(game, safeSelected),
+    [game, safeSelected],
+  );
+  const ui = useRef({
+    campaign: game.campaignId,
+    session: createViewSession(),
+  });
+  if (ui.current.campaign !== game.campaignId)
+    ui.current = { campaign: game.campaignId, session: createViewSession() };
+  const selectBuilding = (id: number) =>
+    onSelect(
+      game.buildings.some((b) => b.id === id) ? id : game.buildings[0].id,
     );
   return (
     <div className={`world-shell ${view}-mode`} data-game-view={view}>
       <VisualLifecycle />
       <GameHUD game={game} act={act} step={step} />
       <GameNavigation view={view} onView={setView} />
-      <Suspense
-        fallback={
-          <div className="world-loading" role="status">
-            지구 기록을 불러오는 중…
+      <div className="game-view-container">
+        <ManagementView
+          active={view === "management"}
+          onOpenGuide={onOpenGuide}
+        >
+          {children}
+        </ManagementView>
+        {view !== "management" && (
+          <div className="spatial-viewport" key={view}>
+            <Suspense
+              fallback={
+                <div className="world-loading" role="status">
+                  지구 기록을 불러오는 중…
+                </div>
+              }
+            >
+              {view === "city" ? (
+                <CityView
+                  game={game}
+                  act={act}
+                  selected={safeSelected}
+                  onSelect={selectBuilding}
+                  onView={setView}
+                  onManageBuilding={onManageBuilding}
+                  presentation={presentation}
+                  session={ui.current.session}
+                />
+              ) : (
+                <BuildingView
+                  game={game}
+                  act={act}
+                  selected={safeSelected}
+                  onSelect={selectBuilding}
+                  onView={setView}
+                  onManageBuilding={onManageBuilding}
+                  presentation={presentation}
+                  session={ui.current.session}
+                />
+              )}
+            </Suspense>
           </div>
-        }
-      >
-        {view === "city" ? (
-          <CityView
-            game={game}
-            act={act}
-            selected={selected}
-            onSelect={onSelect}
-            onView={setView}
-            onManageBuilding={onManageBuilding}
-            presentation={presentation}
-          />
-        ) : (
-          <BuildingView
-            game={game}
-            act={act}
-            selected={selected}
-            onSelect={onSelect}
-            onView={setView}
-            onManageBuilding={onManageBuilding}
-            presentation={presentation}
-          />
         )}
-      </Suspense>
-      {(notice || saveError) && (
+      </div>
+      {view !== "management" && (notice || saveError) && (
         <div className="world-notice" role="status">
           {saveError ? "저장 오류 · 관리 화면에서 진행을 내보내세요." : notice}
         </div>
       )}
-      {game.offlineSummary && (
+      {presentation.warnings.length > 0 && (
+        <details className="world-alerts">
+          <summary>운영 경고 {presentation.warnings.length}건</summary>
+          {presentation.warnings.map((w) => (
+            <p key={w}>{w}</p>
+          ))}
+        </details>
+      )}
+      {view !== "management" && game.offlineSummary && (
         <details className="world-offline">
           <summary>부재 중 공동체 기록</summary>
           <p>{game.offlineSummary}</p>
         </details>
       )}
-      {(game.ended || game.pendingSuccession) && (
+      {view !== "management" && (game.ended || game.pendingSuccession) && (
         <div className="world-decision">
           <h2>
             {game.pendingSuccession

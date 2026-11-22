@@ -10,20 +10,16 @@ import {
   Building2,
   Check,
   ChevronRight,
-  CircleHelp,
   Crown,
   Droplets,
   Flag,
   Hammer,
   Heart,
   Map,
-  Pause,
-  Play,
   Radio,
   Save,
   Settings2,
   Shield,
-  SkipForward,
   Sprout,
   Swords,
   Tent,
@@ -364,7 +360,8 @@ export default function App() {
   const [boot] = useState(initial);
   const [game, setGame] = useState(boot.game);
   const [notice, setNotice] = useState(boot.notice);
-  const [selected, setSelected] = useState(0);
+  const [selectedId, setSelected] = useState(0);
+  const selected=game.buildings.some(b=>b.id===selectedId)?selectedId:game.buildings[0].id;
   const [tab, setTab] = useState<"map" | "shelter" | "people" | "diplomacy">(
     "map",
   );
@@ -452,7 +449,6 @@ export default function App() {
         }
     }
   };
-  const setSpeed = (speed: Speed) => act({ type: "speed", speed });
   const people = living(game),
     leader = game.people.find((p) => p.id === game.leader)!;
   const b = game.buildings[selected];
@@ -508,70 +504,12 @@ export default function App() {
       selected={selected}
       onSelect={setSelected}
       onManageBuilding={() => setTab("map")}
+      onOpenGuide={() => setHelp(true)}
       notice={notice}
       saveError={saveError}
     >
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-icon">
-            <Icon icon={Building2} size={25} />
-          </div>
-          <div>
-            ASHEN<span>CITY</span>
-            <small>잔해의 도시</small>
-          </div>
-        </div>
-        <div className="district-title">
-          <span className="eyebrow">SECTOR 07 / NEW BEGINNINGS</span>
-          <strong>
-            새벽 지구 <span>· 하부 환승역</span>
-          </strong>
-        </div>
-        <div className="time-controls">
-          <div className="clock">
-            <Radio size={14} />
-            <span>{time(game.hour)}</span>
-          </div>
-          <div className="speed-buttons">
-            <button
-              aria-label="일시정지"
-              title="일시정지"
-              className={speed === 0 ? "active" : ""}
-              onClick={() => setSpeed(0)}
-            >
-              <Pause size={15} />
-            </button>
-            {[1, 2, 4].map((n) => (
-              <button
-                key={n}
-                disabled={game.ended || game.pendingSuccession}
-                className={speed === n ? "active" : ""}
-                aria-label={`${n}배속`}
-                onClick={() => setSpeed(n as Speed)}
-              >
-                {n === 1 ? <Play size={14} /> : <>{n}×</>}
-              </button>
-            ))}
-          </div>
-          <button
-            className="step-button"
-            title="게임 1시간 진행"
-            disabled={game.ended || game.pendingSuccession}
-            onClick={() => publish(advance(gameRef.current))}
-          >
-            <SkipForward size={16} />
-            <span>1시간</span>
-          </button>
-        </div>
-        <button
-          className="icon-button"
-          aria-label="플레이 가이드"
-          onClick={() => setHelp(true)}
-        >
-          <CircleHelp size={21} />
-        </button>
-      </header>
+
       <aside className="sidebar">
         <div className="community">
           <span className="eyebrow">OUR SETTLEMENT</span>
@@ -587,7 +525,7 @@ export default function App() {
                   : "공동체 불안정"}
           </span>
         </div>
-        <nav>
+        <nav aria-label="운영실 관리 탭">
           {(
             [
               {
@@ -1501,7 +1439,7 @@ export default function App() {
         </section>
         <footer>
           <span>
-            ASHEN CITY <b>PROTOTYPE 0.3</b>
+            ASHEN CITY <b>PROTOTYPE 0.3.1</b>
           </span>
           <span>
             {speed ? `${speed}× 시뮬레이션 진행 중` : "일시정지"} · 시드{" "}

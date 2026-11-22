@@ -4,6 +4,7 @@ import CityTerrain from "./CityTerrain";
 import CityBuilding from "./CityBuilding";
 import CityCamera, { type CameraIntent } from "./CityCamera";
 import CityEffects from "./CityEffects";
+import type { ViewSession } from "../ViewSession";
 import type { GamePresentation } from "../presentation/GamePresentation";
 import {
   FrameMeter,
@@ -17,12 +18,14 @@ export default function CityScene({
   onSelect,
   intent,
   onMetrics,
+  session,
 }: {
   presentation: GamePresentation;
   selected: number;
   onSelect: (id: number) => void;
   intent: CameraIntent;
   onMetrics: (m: RenderMetrics) => void;
+  session?: ViewSession;
 }) {
   const { gl } = useThree(),
     meter = useMemo(() => new FrameMeter("three"), []);
@@ -84,7 +87,11 @@ export default function CityScene({
         intensity={selectedBuilding.owned && selectedBuilding.powered ? 7 : 0}
         distance={15}
       />
-      <CityCamera intent={intent} focus={selectedBuilding.position} />
+      <CityCamera
+        intent={intent}
+        focus={selectedBuilding.position}
+        session={session}
+      />
     </>
   );
 }
