@@ -38,10 +38,8 @@ import {
   capacity,
   combatPower,
   defense,
-  deserialize,
   dispatch,
   economy,
-  HOUR_MS,
   living,
   newGame,
   operating,
@@ -61,10 +59,20 @@ import type {
   GameState,
   Resource,
   Role,
+  Speed,
 } from "./model";
+import { TIME } from "./config";
+import { onlineElapsed } from "./time";
+import { AUTO, MANUAL, resumeGame, saveGame } from "./storage";
+import {
+  ActionButton,
+  BuildingReport,
+  FacilityControls,
+  Priorities,
+  ResourceLedger,
+  Warnings,
+} from "./Management";
 
-const AUTO = "ashen-city-auto-v1",
-  MANUAL = "ashen-city-save-v1";
 const resourceIcons: Record<Resource, LucideIcon> = {
   food: Wheat,
   water: Droplets,
@@ -81,17 +89,37 @@ const facilityIcons: Record<Facility, LucideIcon> = {
 };
 const time = (hour: number) =>
   `D${String(Math.floor(hour / 24) + 1).padStart(2, "0")} · ${String(hour % 24).padStart(2, "0")}:00`;
-function initial(): { game: GameState; notice: string } {
+const freshGame = () => newGame(727, Date.now(), `city-${crypto.randomUUID()}`);
+function initial(): { game: GameState; notice: string; recovery: boolean } {
+  let failed = false;
   try {
-    const raw = localStorage.getItem(AUTO) || localStorage.getItem(MANUAL);
-    return { game: raw ? deserialize(raw) : newGame(), notice: "" };
+    for (const slot of [AUTO, MANUAL]) {
+      const raw = localStorage.getItem(slot);
+      if (!raw) continue;
+      try {
+        return {
+          game: resumeGame(raw, localStorage),
+          notice: failed
+            ? "자동 저장을 읽지 못해 수동 저장으로 복구했습니다. 원본은 복구 슬롯에 보관했습니다."
+            : "",
+          recovery: false,
+        };
+      } catch {
+        failed = true;
+        const backup = slot + "-recovery";
+        if (!localStorage.getItem(backup)) localStorage.setItem(backup, raw);
+      }
+    }
   } catch {
-    return {
-      game: newGame(),
-      notice:
-        "기존 저장을 읽지 못했습니다. 새 게임을 시작했습니다. 저장 파일 가져오기로 복구할 수 있습니다.",
-    };
+    failed = true;
   }
+  return {
+    game: freshGame(),
+    notice: failed
+      ? "저장을 읽거나 보존하지 못했습니다. 원본을 덮어쓰지 않도록 자동 저장을 중단했습니다. 파일 가져오기 또는 새 게임을 선택하세요."
+      : "",
+    recovery: failed,
+  };
 }
 function Meter({
   value,
@@ -339,7 +367,8 @@ export default function App() {
   const [tab, setTab] = useState<"map" | "shelter" | "people" | "diplomacy">(
     "map",
   );
-  const [speed, setSpeed] = useState(0);
+  const speed = game.clock.speed;
+  const [suspendAuto, setSuspendAuto] = useState(boot.recovery);
   const [help, setHelp] = useState(false);
   const [reset, setReset] = useState(false);
   const [terms, setTerms] = useState({
@@ -348,56 +377,81 @@ export default function App() {
     military: false,
   });
   const [logFilter, setLogFilter] = useState("all");
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState(boot.recovery);
   const [lastSave, setLastSave] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const gameRef = useRef(game);
   gameRef.current = game;
+  const publish = (next: GameState) => {
+    gameRef.current = next;
+    setGame(next);
+  };
+  const gesture = useRef({ key: "", at: -Infinity });
   useEffect(() => {
-    if (!speed) return;
-    const timer = window.setInterval(
-      () => setGame((s) => advance(s)),
-      HOUR_MS / speed,
-    );
+    let previous = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now(),
+        elapsed = now - previous;
+      previous = now;
+      const source = gameRef.current,
+        next = onlineElapsed(source, elapsed);
+      if (next !== source) publish(next);
+    }, TIME.pollMs);
     return () => clearInterval(timer);
-  }, [speed]);
+  }, []);
   useEffect(() => {
-    if (game.pendingSuccession || game.ended) setSpeed(0);
-  }, [game.pendingSuccession, game.ended]);
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const saveAuto = () => {
+      if (suspendAuto) return;
       try {
-        localStorage.setItem(AUTO, serialize(game));
+        saveGame(AUTO, gameRef.current, localStorage);
         setSaveError(false);
       } catch {
         setSaveError(true);
       }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [game]);
-  useEffect(() => {
-    const save = () => {
-      try {
-        localStorage.setItem(AUTO, serialize(gameRef.current));
-      } catch {
-        /* UI already offers export. */
-      }
     };
-    window.addEventListener("pagehide", save);
-    return () => window.removeEventListener("pagehide", save);
-  }, []);
+    saveAuto();
+    const timer = window.setInterval(saveAuto, TIME.autoSaveMs);
+    const visibility = () => {
+      if (document.visibilityState === "hidden") saveAuto();
+    };
+    window.addEventListener("pagehide", saveAuto);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("pagehide", saveAuto);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [suspendAuto]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(""), 6500);
     return () => clearTimeout(timer);
   }, [notice]);
   const act = (command: Command) => {
-    setGame((s) => {
-      const result = dispatch(s, command);
-      if (result.error) window.setTimeout(() => setNotice(result.error!), 0);
-      return result.state;
+    const key = JSON.stringify(command),
+      now = performance.now();
+    if (gesture.current.key === key && now - gesture.current.at < 300) {
+      setNotice("같은 행동의 연속 입력을 차단했습니다.");
+      return;
+    }
+    gesture.current = { key, at: now };
+    const result = dispatch(gameRef.current, {
+      ...command,
+      id: crypto.randomUUID(),
     });
+    if (result.error) setNotice(result.error);
+    else {
+      publish(result.state);
+      if (!suspendAuto)
+        try {
+          saveGame(AUTO, result.state, localStorage);
+          setSaveError(false);
+        } catch {
+          setSaveError(true);
+        }
+    }
   };
+  const setSpeed = (speed: Speed) => act({ type: "speed", speed });
   const people = living(game),
     leader = game.people.find((p) => p.id === game.leader)!;
   const b = game.buildings[selected];
@@ -409,7 +463,9 @@ export default function App() {
     : "첫 작위까지, 한 걸음씩";
   const save = () => {
     try {
-      localStorage.setItem(MANUAL, serialize(game));
+      saveGame(MANUAL, gameRef.current, localStorage);
+      setSuspendAuto(false);
+      setSaveError(false);
       setLastSave(time(game.hour));
       setNotice("수동 저장을 완료했습니다.");
     } catch {
@@ -424,18 +480,18 @@ export default function App() {
         setNotice("저장된 게임이 없습니다.");
         return;
       }
-      setGame(deserialize(raw));
-      setSpeed(0);
+      publish(resumeGame(raw, localStorage));
+      setSuspendAuto(false);
       setNotice("저장한 공동체를 불러왔습니다.");
     } catch {
       setNotice(
-        "저장을 불러오지 못했습니다. 지원되는 v1 저장 파일을 확인하세요.",
+        "저장을 불러오지 못했습니다. 지원되는 v1/v2 저장 파일을 확인하세요.",
       );
     }
   };
   const exportSave = () => {
     const url = URL.createObjectURL(
-      new Blob([serialize(game)], { type: "application/json" }),
+      new Blob([serialize(gameRef.current)], { type: "application/json" }),
     );
     const link = document.createElement("a");
     link.href = url;
@@ -481,7 +537,7 @@ export default function App() {
                 disabled={game.ended || game.pendingSuccession}
                 className={speed === n ? "active" : ""}
                 aria-label={`${n}배속`}
-                onClick={() => setSpeed(n)}
+                onClick={() => setSpeed(n as Speed)}
               >
                 {n === 1 ? <Play size={14} /> : <>{n}×</>}
               </button>
@@ -491,7 +547,7 @@ export default function App() {
             className="step-button"
             title="게임 1시간 진행"
             disabled={game.ended || game.pendingSuccession}
-            onClick={() => setGame((s) => advance(s))}
+            onClick={() => publish(advance(gameRef.current))}
           >
             <SkipForward size={16} />
             <span>1시간</span>
@@ -645,6 +701,16 @@ export default function App() {
                   {flow.delta[key].toFixed(1)}
                   <small>/h</small>
                 </em>
+                <small className="resource-flow">
+                  생산 {flow.production[key].toFixed(1)} · 필요{" "}
+                  {flow.demand[key].toFixed(1)} /h{" "}
+                  {flow.overflow[key] > 0
+                    ? `· 초과 ${flow.overflow[key].toFixed(1)}`
+                    : ""}
+                  {flow.shortageHours[key] !== null
+                    ? ` · 부족 약 ${flow.shortageHours[key]!.toFixed(1)}h`
+                    : ""}
+                </small>
               </div>
             );
           })}
@@ -661,6 +727,13 @@ export default function App() {
             </div>
           </div>
         </section>
+        <ResourceLedger game={game} />
+        <Warnings game={game} />
+        {saveError && (
+          <div className="banner negative">
+            저장 실패 또는 복구 대기 · 파일 내보내기로 진행을 보존하세요.
+          </div>
+        )}
         {game.offlineSummary && (
           <div className="banner">
             <Radio size={17} />
@@ -860,9 +933,10 @@ export default function App() {
                 <div className="note">
                   <BatteryCharging size={18} />
                   <p>
-                    농장·정수 시설은 근무자당 전력 0.3/h를 사용합니다. 전력이
-                    없으면 생산 효율이 35%로 줄어듭니다. 식량과 식수 부족이
-                    지속되면 사기·건강이 떨어집니다.
+                    농장·정수 시설은 근무자당 전력 0.3/h를 사용합니다. 재고와
+                    시간당 발전량을 합쳐 우선순위로 공급하며 부족분에 비례해
+                    효율이 떨어집니다. 식량과 식수 부족이 지속되면 사기·건강이
+                    떨어집니다.
                   </p>
                 </div>
                 <div className="save-tools">
@@ -892,6 +966,7 @@ export default function App() {
                     제외됩니다.
                   </p>
                 </div>
+                <Priorities game={game} act={act} />
                 <div className="people-list">
                   {game.people.map((p) => (
                     <article
@@ -1087,69 +1162,48 @@ export default function App() {
                             : "관계 개선 필요"}
                       </div>
                       <div className="faction-actions">
-                        <button
-                          disabled={
-                            game.resources[f.resource] < 15 || game.ended
-                          }
-                          onClick={() => act({ type: "gift", faction: f.id })}
+                        <ActionButton
+                          compact
+                          game={game}
+                          command={{ type: "gift", faction: f.id }}
+                          act={act}
                         >
                           보급 전달{" "}
                           <small>
                             {RESOURCE_NAMES[f.resource]} 15 · 관계 +12
                           </small>
-                        </button>
-                        <button
-                          disabled={
-                            f.relation < 0 ||
-                            game.resources[f.resource] < 12 ||
-                            game.ended
-                          }
-                          onClick={() => act({ type: "trade", faction: f.id })}
+                        </ActionButton>
+                        <ActionButton
+                          compact
+                          game={game}
+                          command={{ type: "trade", faction: f.id }}
+                          act={act}
                         >
                           교역{" "}
                           <small>
-                            {RESOURCE_NAMES[f.resource]} 12 →{" "}
-                            {f.resource === "materials" ? "식량" : "자재"} 10
+                            {RESOURCE_NAMES[f.resource]} 12 / 교역품 10
                           </small>
-                        </button>
-                        <button
-                          disabled={
-                            f.relation < 20 ||
-                            game.resources.materials < 10 ||
-                            game.ended ||
-                            owned(game).every((b) =>
-                              f.recognized.includes(b.id),
-                            )
-                          }
-                          onClick={() =>
-                            act({ type: "recognition", faction: f.id })
-                          }
+                        </ActionButton>
+                        <ActionButton
+                          compact
+                          game={game}
+                          command={{ type: "recognition", faction: f.id }}
+                          act={act}
                         >
                           영토 인정 <small>자재 10 · 관계 +8</small>
-                        </button>
+                        </ActionButton>
                       </div>
-                      <button
-                        className="primary-button claim-button"
-                        disabled={
-                          game.title === "baron" ||
-                          game.ended ||
-                          req.some((r) => r.current < r.target) ||
-                          f.relation <
-                            requiredRelation(
-                              terms.allegiance,
-                              terms.tax,
-                              terms.military,
-                            )
-                        }
-                        onClick={() =>
-                          act({ type: "claim", faction: f.id, ...terms })
-                        }
+                      <ActionButton
+                        game={game}
+                        command={{ type: "claim", faction: f.id, ...terms }}
+                        act={act}
+                        primary
                       >
                         <Crown size={17} />
                         {game.title === "baron"
                           ? "남작 작위 보유"
                           : "이 계약으로 남작 인정 요청"}
-                      </button>
+                      </ActionButton>
                     </article>
                   ))}
                 </div>
@@ -1224,128 +1278,63 @@ export default function App() {
                       <dd>
                         {b.status === "unknown"
                           ? "미확인"
-                          : `${b.loot} / ${b.cost}`}
+                          : `${b.loot} / 시설 선택 후 견적`}
                       </dd>
                     </div>
                   </dl>
+                  <BuildingReport game={game} building={b} />
                   {b.status === "unknown" && (
-                    <>
-                      <button
-                        className="primary-button"
-                        disabled={
-                          !reachable(game, b) ||
-                          game.resources.power < 2 ||
-                          game.ended
-                        }
-                        onClick={() => act({ type: "explore", building: b.id })}
-                      >
-                        <Map size={16} />
-                        구역 탐색 <span>전력 2</span>
-                      </button>
-                      {!reachable(game, b) && (
-                        <p className="action-help">
-                          우리 영토와 맞닿은 건물을 먼저 확보하세요.
-                        </p>
-                      )}
-                    </>
+                    <ActionButton
+                      game={game}
+                      command={{ type: "explore", building: b.id }}
+                      act={act}
+                      primary
+                    >
+                      구역 탐색
+                    </ActionButton>
                   )}
                   {b.status === "discovered" && (
                     <div className="building-actions">
-                      <button
-                        className="primary-button"
-                        disabled={
-                          !reachable(game, b) ||
-                          party(game).length === 0 ||
-                          game.resources.food < 3 ||
-                          game.ended
-                        }
-                        onClick={() => act({ type: "secure", building: b.id })}
+                      <ActionButton
+                        game={game}
+                        command={{ type: "secure", building: b.id }}
+                        act={act}
+                        primary
                       >
-                        <Swords size={16} />
-                        자동 전투로 확보 <span>식량 3</span>
-                      </button>
-                      <button
-                        className="secondary-button"
-                        disabled={
-                          !reachable(game, b) ||
-                          game.resources.food < (b.owner ? 30 : 12) ||
-                          game.resources.water < (b.owner ? 30 : 12) ||
-                          (!!faction && faction.relation < 25) ||
-                          game.ended
-                        }
-                        onClick={() =>
-                          act({ type: "negotiate", building: b.id })
-                        }
+                        자동 전투로 확보
+                      </ActionButton>
+                      <ActionButton
+                        game={game}
+                        command={{ type: "negotiate", building: b.id }}
+                        act={act}
                       >
-                        <Flag size={16} />
                         보급·양도 협상
-                      </button>
+                      </ActionButton>
                       <p className="action-help">
-                        협상: 식량·식수 각각 {b.owner ? 30 : 12}
-                        {faction ? " · 관계 25 이상" : ""}.<br />
-                        전투: 아군 {combatPower(game)} × 0.8~1.2 / 방어{" "}
-                        {defense(b)}. 승리해도 부상이 발생합니다.
+                        전투력 {combatPower(game)} × 0.8~1.2 / 방어 {defense(b)}
+                        . 승패와 무관하게 보급을 쓰고 부상을 입습니다.
                       </p>
                     </div>
                   )}
-                  {b.owner === "player" &&
-                    b.id !== 0 &&
-                    b.status !== "restoring" && (
-                      <div className="facility-picker">
-                        <label htmlFor="facility">시설 용도</label>
-                        <select
-                          id="facility"
-                          value={b.facility ?? ""}
-                          onChange={(e) =>
-                            act({
-                              type: "facility",
-                              building: b.id,
-                              facility: e.target.value as Facility,
-                            })
-                          }
-                        >
-                          <option value="" disabled>
-                            시설을 지정하세요
-                          </option>
-                          {Object.entries(FACILITIES).map(([key, f]) => (
-                            <option key={key} value={key}>
-                              {f.name}
-                            </option>
-                          ))}
-                        </select>
-                        {b.facility && (
-                          <p className="action-help">
-                            {FACILITIES[b.facility].description}
-                          </p>
-                        )}
-                        {b.status === "secured" && (
-                          <button
-                            className="primary-button"
-                            disabled={
-                              !b.facility ||
-                              game.resources.materials < b.cost ||
-                              game.ended
-                            }
-                            onClick={() =>
-                              act({ type: "restore", building: b.id })
-                            }
-                          >
-                            <Hammer size={16} />
-                            복구 시작 <span>자재 {b.cost}</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
+                  <FacilityControls
+                    key={`${b.id}-${b.facility}-${b.status}`}
+                    game={game}
+                    building={b}
+                    act={act}
+                  />
                   {b.status === "restoring" && (
                     <div className="restoration">
                       <div>
-                        <span>복구 진행</span>
+                        <span>
+                          {b.project?.kind === "convert" ? "시설 전환" : "복구"}{" "}
+                          진행
+                        </span>
                         <strong>{Math.round(b.progress)}%</strong>
                       </div>
                       <Meter value={b.progress} color="gold" />
                       <p className="action-help">
-                        공동체 복구 인력 최대 2명이 한 건물씩 순서대로
-                        작업합니다. 시간을 진행하세요.
+                        복구 우선순위에 따라 인력을 배정합니다. 인력이 없으면
+                        자재 추가 차감 없이 대기합니다.
                       </p>
                     </div>
                   )}
@@ -1363,8 +1352,8 @@ export default function App() {
               <div className="detail-content">
                 <h2>도시로 나설 준비</h2>
                 <p className="muted">
-                  장비·사기·건강·경비 숙련이 전투력을 결정합니다. 방위 초소마다
-                  전투력 +15%.
+                  장비·사기·건강·경비 숙련이 전투력을 결정합니다. 방위 초소는
+                  배정 인원·건강·건물 적합성에 따라 전투력을 보강합니다.
                 </p>
               </div>
             )}
@@ -1456,6 +1445,7 @@ export default function App() {
             <div className="log-tabs">
               {[
                 { id: "all", label: "전체" },
+                { id: "important", label: "중요" },
                 { id: "work", label: "생산·개척" },
                 { id: "combat", label: "전투" },
                 { id: "diplomacy", label: "외교" },
@@ -1476,10 +1466,21 @@ export default function App() {
             aria-relevant="additions"
           >
             {game.logs
-              .filter((l) => logFilter === "all" || l.category === logFilter)
+              .filter(
+                (l) =>
+                  logFilter === "all" ||
+                  (logFilter === "important"
+                    ? l.important ||
+                      l.category === "combat" ||
+                      l.category === "diplomacy"
+                    : l.category === logFilter),
+              )
               .slice(0, 12)
               .map((l) => (
-                <div className={`event ${l.category}`} key={l.id}>
+                <div
+                  className={`event ${l.category} ${l.important ? "important" : ""}`}
+                  key={l.id}
+                >
                   <time>{time(l.hour)}</time>
                   <span className="event-marker" />
                   <p>{l.text}</p>
@@ -1489,7 +1490,7 @@ export default function App() {
         </section>
         <footer>
           <span>
-            ASHEN CITY <b>PROTOTYPE 0.1</b>
+            ASHEN CITY <b>PROTOTYPE 0.2</b>
           </span>
           <span>
             {speed ? `${speed}× 시뮬레이션 진행 중` : "일시정지"} · 시드{" "}
@@ -1507,11 +1508,13 @@ export default function App() {
           if (!file) return;
           try {
             if (file.size > 2_000_000) throw new Error();
-            setGame(deserialize(await file.text()));
-            setSpeed(0);
+            publish(resumeGame(await file.text(), localStorage));
+            setSuspendAuto(false);
             setNotice("저장 파일을 가져왔습니다.");
           } catch {
-            setNotice("유효한 v1 저장 JSON 파일이 아닙니다.");
+            setNotice(
+              "유효한 v1/v2 저장 파일이 아니거나 복구 기록을 저장하지 못했습니다. 현재 게임은 유지됩니다.",
+            );
           }
           e.target.value = "";
         }}
@@ -1573,9 +1576,10 @@ export default function App() {
                   </li>
                 </ol>
                 <p className="muted">
-                  자동 저장과 수동 저장은 별도입니다. 부재 중 최대 12시간
-                  진행하며 사망과 계약 정산을 유예합니다. 자동 전투에는 부상과
-                  사망 위험이 있습니다.
+                  자동 저장과 수동 저장은 별도입니다. 일시정지 종료 시에는 부재
+                  진행이 없습니다. 진행 중 종료 시 현실 5분당 게임 1시간, 최대
+                  12시간 진행하며 사망과 계약 정산을 유예합니다. 자동 전투에는
+                  부상과 사망 위험이 있습니다.
                 </p>
                 <button
                   className="primary-button"
@@ -1597,9 +1601,10 @@ export default function App() {
                   <button
                     className="primary-button"
                     onClick={() => {
-                      setGame(newGame());
+                      publish(freshGame());
+                      setSuspendAuto(false);
                       setSelected(0);
-                      setSpeed(0);
+
                       setTab("map");
                       setTerms({
                         allegiance: false,
@@ -1627,7 +1632,8 @@ export default function App() {
                   <button
                     className="primary-button"
                     onClick={() => {
-                      setGame(newGame());
+                      publish(freshGame());
+                      setSuspendAuto(false);
                       setSelected(0);
                       setTab("map");
                     }}

@@ -16,6 +16,7 @@ import {
   titleRequirements,
 } from "../src/engine";
 import type { Command, GameState, Role } from "../src/model";
+import { TIME } from "../src/config";
 
 function run(s: GameState, command: Command) {
   const result = dispatch(s, command);
@@ -138,6 +139,9 @@ describe("정착지 시뮬레이션", () => {
     };
     const full = economy(powered).delta.food;
     powered.resources.power = 0;
+    powered.people
+      .filter((p) => p.role === "engineer")
+      .forEach((p) => (p.role = "guard"));
     expect(economy(powered).delta.food).toBeLessThan(full);
   });
 });
@@ -232,17 +236,19 @@ describe("외교와 저장", () => {
   });
   it("저장 왕복으로 상태를 보존하고 부재 진행을 12시간으로 제한한다", () => {
     const s = newGame();
+    s.clock.speed = 1;
     const now = 100000;
     const raw = serialize(s, now);
     const same = deserialize(raw, now);
     expect(same).toEqual({ ...s, lastSavedAt: now });
-    const later = deserialize(raw, now + HOUR_MS * 1000);
+    const later = deserialize(raw, now + TIME.offlineHourMs * 1000);
     expect(later.hour).toBe(12);
     expect(later.offlineSummary).toContain("12시간");
     expect(deserialize(raw, now - 1000).hour).toBe(0);
   });
   it("오프라인에는 치명적 결핍에서도 사망을 방지하고 계승은 보류한다", () => {
     const s = newGame();
+    s.clock.speed = 1;
     s.resources.food = 0;
     s.resources.water = 0;
     s.people.forEach((p) => {
@@ -251,10 +257,17 @@ describe("외교와 저장", () => {
       p.hunger = 100;
       p.thirst = 100;
     });
-    const next = deserialize(serialize(s, 1000), 1000 + HOUR_MS * 200);
+    const next = deserialize(
+      serialize(s, 1000),
+      1000 + TIME.offlineHourMs * 200,
+    );
     expect(next.people.every((p) => p.alive && p.health >= 25)).toBe(true);
     expect(next.pendingSuccession).toBe(false);
     s.pendingSuccession = true;
+    s.clock.speed = 0;
+    s.people[0].alive = false;
+    s.people[0].health = 0;
+    s.people[0].assignment = null;
     expect(deserialize(serialize(s, 1000), 1000 + HOUR_MS * 200).hour).toBe(0);
   });
   it("잘못된 버전·손상 데이터·JSON을 거부한다", () => {

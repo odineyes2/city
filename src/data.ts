@@ -1,4 +1,6 @@
 import type { Facility, GameState, Resource, Role } from "./model";
+import { ECONOMY, DEFAULT_PRIORITIES } from "./config";
+import { buildingTraits } from "./buildings";
 export const RESOURCE_NAMES: Record<Resource, string> = {
   food: "식량",
   water: "식수",
@@ -23,43 +25,43 @@ export const FACILITIES: Record<
 > = {
   farm: {
     name: "수경 농장",
-    description: "재배 주민이 식량 생산 · 전력 0.3/h",
+    description: "재배 주민이 식량 생산 · 전력·유지 자재 필요",
     role: "farmer",
     resource: "food",
-    amount: 2.8,
+    amount: ECONOMY.facilityProduction.farm,
   },
   pump: {
     name: "정수 시설",
-    description: "기술 주민이 식수 생산 · 전력 0.3/h",
+    description: "기술 주민이 식수 생산 · 전력·유지 자재 필요",
     role: "engineer",
     resource: "water",
-    amount: 3.5,
+    amount: ECONOMY.facilityProduction.pump,
   },
   generator: {
     name: "발전 시설",
     description: "기술 주민이 전력 생산",
     role: "engineer",
     resource: "power",
-    amount: 2.5,
+    amount: ECONOMY.facilityProduction.generator,
   },
   workshop: {
     name: "재활용 작업장",
     description: "수색 주민이 자재 생산",
     role: "scavenger",
     resource: "materials",
-    amount: 1.8,
+    amount: ECONOMY.facilityProduction.workshop,
   },
   housing: {
     name: "주거 구역",
     description: "수용 인원 +5 · 여유와 물자가 있으면 12시간마다 이주",
     role: "engineer",
-    amount: 5,
+    amount: ECONOMY.facilityProduction.housing,
   },
   barracks: {
     name: "방위 초소",
-    description: "전투력 +15% · 군사 지원 의무 대응",
+    description: "배정 경비·적합성에 따른 방어 보너스 · 군사 의무 대응",
     role: "guard",
-    amount: 0.15,
+    amount: ECONOMY.facilityProduction.barracks,
   },
 };
 export const STATUS_NAMES = {
@@ -69,7 +71,11 @@ export const STATUS_NAMES = {
   restoring: "복구 중",
   operating: "운영 중",
 };
-export function newGame(seed = 727): GameState {
+export function newGame(
+  seed = 727,
+  now = Date.now(),
+  campaignId = `city-${seed}-${now}`,
+): GameState {
   const names = [
     "윤서",
     "도윤",
@@ -117,10 +123,16 @@ export function newGame(seed = 727): GameState {
     "관측 타워",
   ];
   return {
-    version: 1,
+    version: 2,
+    campaignId,
+    revision: 0,
+    clock: { speed: 0, onlineRemainderMs: 0, offlineRemainderMs: 0 },
+    priorities: { ...DEFAULT_PRIORITIES },
+    processedCommands: [],
+    warnings: [],
     seed: seed >>> 0,
     hour: 0,
-    resources: { food: 75, water: 85, power: 45, materials: 65 },
+    resources: { ...ECONOMY.initial },
     people: names.map((name, i) => ({
       id: `p${i}`,
       name,
@@ -133,9 +145,11 @@ export function newGame(seed = 727): GameState {
       injury: 0,
       alive: true,
       task: "대기",
+      assignment: null,
     })),
     buildings: labels.map((name, i) => ({
       id: i,
+      ...buildingTraits(i),
       name,
       x: i % 5,
       y: Math.floor(i / 5),
@@ -213,7 +227,7 @@ export function newGame(seed = 727): GameState {
     ],
     nextLog: 1,
     battles: [],
-    lastSavedAt: Date.now(),
+    lastSavedAt: now,
     offlineSummary: null,
   };
 }

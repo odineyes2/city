@@ -2142,6 +2142,227 @@ footer b {
     scroll-behavior: auto !important;
   }
 }
+
+/* 1단계 운영 정보는 접어서 기본 화면의 지도를 유지한다. */
+.economy-ledger,
+.operating-warnings {
+  border: 1px solid #3c513f;
+  background: #1b281f;
+  border-radius: 5px;
+  margin: -8px 0 18px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.economy-ledger summary,
+.operating-warnings summary {
+  cursor: pointer;
+  color: #b8cba8;
+  font-weight: 500;
+}
+.economy-ledger p {
+  color: #91a58b;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.ledger-scroll {
+  overflow: auto;
+  margin-top: 12px;
+}
+.economy-ledger table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 760px;
+  text-align: right;
+  font-size: 12px;
+}
+.economy-ledger th,
+.economy-ledger td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #364b37;
+  white-space: nowrap;
+}
+.economy-ledger th:first-child {
+  text-align: left;
+}
+.economy-ledger thead {
+  color: #b7c69c;
+}
+.contribution {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 7px 0;
+  border-bottom: 1px solid #304332;
+  font-size: 12px;
+}
+.contribution span {
+  color: #97ad8b;
+  text-align: right;
+}
+.contribution strong {
+  font-weight: 500;
+}
+.operating-warnings {
+  border-color: #78623e;
+  background: #3b3421;
+  color: #d4c08b;
+}
+.operating-warnings summary {
+  color: #d4c08b;
+}
+.operating-warnings ul {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+.priority-panel {
+  border: 1px solid #4b6544;
+  border-radius: 5px;
+  padding: 16px;
+  margin: 18px 0;
+  background: #26382355;
+}
+.priority-panel h3 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.priority-panel > p {
+  font-size: 12px;
+  color: #9eb78e;
+  line-height: 1.9;
+  margin: 10px 0 14px;
+}
+.priority-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.priority-grid label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px;
+  background: #1a2a1c;
+  border: 1px solid #394f35;
+  border-radius: 4px;
+}
+.priority-grid small {
+  display: block;
+  color: #92a982;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.priority-grid select {
+  font-size: 12px;
+  padding: 7px 25px 7px 8px;
+}
+.building-report {
+  margin: 16px 0;
+  padding: 13px;
+  border: 1px solid #40553a;
+  background: #23321e55;
+  border-radius: 4px;
+  line-height: 1.9;
+}
+.building-report h3 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #c7d5ae;
+}
+.building-report p,
+.building-report dl {
+  font-size: 12px;
+  color: #9eb38e;
+  margin: 8px 0;
+}
+.building-report dl > div {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.building-report dd {
+  margin: 0;
+  text-align: right;
+}
+.building-report dt {
+  flex-shrink: 0;
+}
+.action-control {
+  margin-top: 11px;
+}
+.action-control > .action-help {
+  display: block;
+  line-height: 1.8;
+  font-size: 12px;
+  margin: 7px 0;
+}
+.action-control.compact {
+  margin: 0;
+  min-width: 0;
+}
+.action-control.compact button {
+  display: block;
+  height: 100%;
+  min-height: 48px;
+}
+.action-control.compact .action-help {
+  font-size: 11px;
+}
+.resource {
+  flex-wrap: wrap;
+}
+.resource-flow {
+  flex-basis: 100%;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #9bb18d;
+}
+.event.important {
+  background: #36402b55;
+  border-left: 2px solid #b4bd7e;
+  padding-left: 9px;
+}
+.event.important p {
+  color: #d5d3ae;
+}
+.event.important .event-marker {
+  background: #c4c281;
+}
+.status-tag.restoring {
+  white-space: nowrap;
+}
+@media (max-width: 680px) {
+  .priority-grid {
+    grid-template-columns: 1fr;
+  }
+  .economy-ledger,
+  .operating-warnings {
+    padding: 11px 12px;
+    font-size: 12px;
+  }
+  .contribution {
+    flex-direction: column;
+    gap: 3px;
+  }
+  .contribution span {
+    text-align: left;
+  }
+  .building-report p,
+  .building-report dl {
+    font-size: 13px;
+  }
+  .resource-flow {
+    font-size: 10px;
+  }
+  .resource strong small {
+    font-size: 11px;
+  }
+  .resource-strip {
+    margin-bottom: 18px;
+  }
+}
 /* Primary game information stays readable; small type is reserved for metadata. */
 :root {
   font-size: 16px;

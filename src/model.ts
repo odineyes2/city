@@ -1,5 +1,18 @@
 export type Resource = "food" | "water" | "power" | "materials";
 export type Stock = Record<Resource, number>;
+export type WorkArea = Resource | "repair" | "guard";
+export type Priority = 0 | 1 | 2;
+export type Speed = 0 | 1 | 2 | 4;
+export interface Assignment {
+  area: WorkArea;
+  building: number | null;
+}
+export interface Project {
+  kind: "restore" | "convert";
+  target: Facility;
+  workRequired: number;
+  paidMaterials: number;
+}
 export type Role = "farmer" | "engineer" | "scavenger" | "guard";
 export type Facility =
   | "farm"
@@ -26,6 +39,7 @@ export interface Person {
   injury: number;
   alive: boolean;
   task: string;
+  assignment: Assignment | null;
 }
 export interface Building {
   id: number;
@@ -40,6 +54,13 @@ export interface Building {
   progress: number;
   facility: Facility | null;
   loot: number;
+  type: string;
+  structure: number;
+  repairDifficulty: number;
+  allowedFacilities: Facility[];
+  suitability: Record<Facility, number>;
+  effects: { storage: number; housing: number; healing: number };
+  project: Project | null;
 }
 export interface Faction {
   id: string;
@@ -63,6 +84,7 @@ export interface LogEntry {
   hour: number;
   category: "system" | "work" | "combat" | "diplomacy";
   text: string;
+  important?: boolean;
 }
 export interface Battle {
   hour: number;
@@ -74,7 +96,17 @@ export interface Battle {
   casualties: string[];
 }
 export interface GameState {
-  version: 1;
+  version: 2;
+  campaignId: string;
+  revision: number;
+  clock: {
+    speed: Speed;
+    onlineRemainderMs: number;
+    offlineRemainderMs: number;
+  };
+  priorities: Record<WorkArea, Priority>;
+  processedCommands: string[];
+  warnings: string[];
   seed: number;
   hour: number;
   resources: Stock;
@@ -97,7 +129,7 @@ export interface GameState {
   lastSavedAt: number;
   offlineSummary: string | null;
 }
-export type Command =
+export type Command = (
   | { type: "explore" | "secure" | "negotiate" | "restore"; building: number }
   | { type: "facility"; building: number; facility: Facility }
   | { type: "role"; person: string; role: Role }
@@ -114,7 +146,10 @@ export type Command =
       military: boolean;
     }
   | { type: "successor"; person: string }
-  | { type: "succeed" | "end" };
+  | { type: "priority"; area: WorkArea; priority: Priority }
+  | { type: "speed"; speed: Speed }
+  | { type: "succeed" | "end" }
+) & { id?: string };
 export interface Result {
   state: GameState;
   error?: string;
