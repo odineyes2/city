@@ -10,6 +10,7 @@ export default function RendererStats({
       data-testid="renderer-stats"
       data-fps={metrics?.fps ?? 0}
       data-p95={metrics?.p95Ms ?? 0}
+      data-sample={metrics?.sequence ?? 0}
     >
       <summary>
         {metrics ? `${metrics.fps} FPS` : "렌더링 측정 중"} <span>· 성능</span>

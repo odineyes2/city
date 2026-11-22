@@ -7,6 +7,7 @@ export interface RenderMetrics {
   geometries: number;
   textures: number;
   renderer: "three" | "pixi";
+  sequence: number;
 }
 export const visualDiagnostics = {
   cityActive: 0,
@@ -52,6 +53,7 @@ export function registerScene(kind: "city" | "building") {
   };
 }
 export class FrameMeter {
+  private sequence = 0;
   private elapsed = 0;
   private samples: number[] = [];
   constructor(private renderer: RenderMetrics["renderer"]) {}
@@ -75,6 +77,7 @@ export class FrameMeter {
         frames: this.samples.length,
         ...counts,
         renderer: this.renderer,
+        sequence: ++this.sequence,
       };
     this.elapsed = 0;
     this.samples = [];

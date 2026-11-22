@@ -1440,7 +1440,7 @@ export default function App() {
         </section>
         <footer>
           <span>
-            ASHEN CITY <b>PROTOTYPE 0.3.1</b>
+            ASHEN CITY <b>PROTOTYPE 0.3.2</b>
           </span>
           <span>
             {speed ? `${speed}× 시뮬레이션 진행 중` : "일시정지"} · 시드{" "}

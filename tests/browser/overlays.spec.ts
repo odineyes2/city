@@ -1,18 +1,135 @@
-import {test,expect,type Page} from '@playwright/test';
-import {camera} from './helpers';
-async function ready(page:Page){await page.goto('/',{waitUntil:'domcontentloaded'});await page.locator('.city-canvas canvas[data-camera]').waitFor();}
-const close=async(page:Page)=>{await page.getByRole('button',{name:'오버레이 닫기',exact:true}).click();await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','none');};
-test('도시 캔버스 유지, 단일 라이트박스·배경 입력 차단·포커스·내부/관리 복귀',async({page})=>{
- await ready(page);const node=await page.locator('.city-canvas canvas').elementHandle();const before=await camera(page);const opener=page.getByRole('button',{name:'내부 보기',exact:true});await opener.click();await expect(page.getByRole('dialog',{name:'하부 환승 쉘터',exact:true})).toBeVisible();await expect(page.locator('[data-testid="building-view"][data-ready="true"]')).toBeVisible();await page.screenshot({path:'.dev-checks/building-overlay.png',clip:{x:260,y:230,width:700,height:400}});
- await expect(page.locator('.city-foundation')).toHaveAttribute('inert','');expect(await page.locator('.city-canvas canvas').evaluate((el,old)=>el===old,node)).toBe(true);
- const stopped=await camera(page);await page.mouse.move(10,350);await page.mouse.down({button:'left'});await page.mouse.move(30,450,{steps:10});await page.mouse.up({button:'left'});await page.mouse.wheel(0,-400);await page.keyboard.press('f');expect(await camera(page)).toEqual(stopped);
- for(let i=0;i<12;i++){await page.keyboard.press('Tab');expect(await page.evaluate(()=>!!document.activeElement?.closest('.overlay-host[role="dialog"]'))).toBe(true);}
- await page.locator('.overlay-header').getByRole('button',{name:'관리',exact:true}).click();await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','management');await page.getByRole('region',{name:'운영실 내용'}).press('End');await expect.poll(()=>page.locator('.management-scroll').evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
- await page.screenshot({path:'.dev-checks/management-overlay.png',clip:{x:40,y:30,width:1050,height:180}});
- await page.locator('.overlay-header').getByRole('button',{name:'건물로 돌아가기',exact:true}).click();await expect(page.getByTestId('building-view')).toHaveAttribute('data-building-id','0');await expect(page.locator('[data-testid="building-view"][data-ready="true"]')).toBeVisible();await close(page);expect(await camera(page)).toEqual(before);await expect(opener).toBeFocused();
- await page.screenshot({path:'.dev-checks/city-overlay-closed.png',clip:{x:350,y:180,width:650,height:420}});
+import { test, expect, type Page } from "@playwright/test";
+import { camera } from "./helpers";
+async function ready(page: Page) {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator(".city-canvas canvas[data-camera]").waitFor();
+}
+const close = async (page: Page) => {
+  await page
+    .getByRole("button", { name: "오버레이 닫기", exact: true })
+    .click();
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "none",
+  );
+};
+test("도시 캔버스 유지, 단일 라이트박스·배경 입력 차단·포커스·내부/관리 복귀", async ({
+  page,
+}) => {
+  await ready(page);
+  const node = await page.locator(".city-canvas canvas").elementHandle();
+  const before = await camera(page);
+  const opener = page.getByRole("button", { name: "내부 보기", exact: true });
+  await opener.click();
+  await expect(
+    page.getByRole("dialog", { name: "하부 환승 쉘터", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-testid="building-view"][data-ready="true"]'),
+  ).toBeVisible();
+  await page.screenshot({
+    path: ".dev-checks/building-overlay.png",
+    clip: { x: 260, y: 230, width: 700, height: 400 },
+  });
+  await expect(page.locator(".city-foundation")).toHaveAttribute("inert", "");
+  expect(
+    await page
+      .locator(".city-canvas canvas")
+      .evaluate((el, old) => el === old, node),
+  ).toBe(true);
+  const stopped = await camera(page);
+  await page.mouse.move(10, 350);
+  await page.mouse.down({ button: "left" });
+  await page.mouse.move(30, 450, { steps: 10 });
+  await page.mouse.up({ button: "left" });
+  await page.mouse.wheel(0, -400);
+  await page.keyboard.press("f");
+  expect(await camera(page)).toEqual(stopped);
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(
+        () => !!document.activeElement?.closest('.overlay-host[role="dialog"]'),
+      ),
+    ).toBe(true);
+  }
+  await page
+    .locator(".overlay-header")
+    .getByRole("button", { name: "관리", exact: true })
+    .click();
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "management",
+  );
+  await page.getByRole("region", { name: "운영실 내용" }).press("End");
+  await expect
+    .poll(() =>
+      page.locator(".management-scroll").evaluate((el) => el.scrollTop),
+    )
+    .toBeGreaterThan(0);
+  await page.screenshot({
+    path: ".dev-checks/management-overlay.png",
+    clip: { x: 40, y: 30, width: 1050, height: 180 },
+  });
+  await page
+    .locator(".overlay-header")
+    .getByRole("button", { name: "건물로 돌아가기", exact: true })
+    .click();
+  await expect(page.getByTestId("building-view")).toHaveAttribute(
+    "data-building-id",
+    "0",
+  );
+  await expect(
+    page.locator('[data-testid="building-view"][data-ready="true"]'),
+  ).toBeVisible();
+  await close(page);
+  expect(await camera(page)).toEqual(before);
+  await expect(opener).toBeFocused();
+  await page.screenshot({
+    path: ".dev-checks/city-overlay-closed.png",
+    clip: { x: 350, y: 180, width: 650, height: 420 },
+  });
 });
-test('Escape·중첩 가이드·브라우저 뒤로가기, 게임 상태 불변',async({page})=>{
- await ready(page);const origin=await page.evaluate(()=>performance.timeOrigin);const stocks=await page.locator('.world-stock').textContent();await page.getByRole('navigation',{name:'게임 화면'}).getByRole('button',{name:'관리',exact:true}).click();await page.locator('.overlay-header').getByRole('button',{name:'플레이 가이드',exact:true}).click();await expect(page.getByRole('dialog',{name:'플레이 가이드',exact:true})).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'플레이 가이드',exact:true})).toHaveCount(0);await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','management');await page.keyboard.press('Escape');await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','none');
- await page.getByRole('button',{name:'내부 보기',exact:true}).click();await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','building');await page.goBack();await expect(page.locator('[data-overlay]')).toHaveAttribute('data-overlay','none');expect(await page.evaluate(()=>performance.timeOrigin)).toBe(origin);expect(await page.locator('.world-stock').textContent()).toBe(stocks);
+test("Escape·중첩 가이드·브라우저 뒤로가기, 게임 상태 불변", async ({
+  page,
+}) => {
+  await ready(page);
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const stocks = await page.locator(".world-stock").textContent();
+  await page
+    .getByRole("navigation", { name: "게임 화면" })
+    .getByRole("button", { name: "관리", exact: true })
+    .click();
+  await page
+    .locator(".overlay-header")
+    .getByRole("button", { name: "플레이 가이드", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "플레이 가이드", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "플레이 가이드", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "management",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "none",
+  );
+  await page.getByRole("button", { name: "내부 보기", exact: true }).click();
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "building",
+  );
+  await page.goBack();
+  await expect(page.locator("[data-overlay]")).toHaveAttribute(
+    "data-overlay",
+    "none",
+  );
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  expect(await page.locator(".world-stock").textContent()).toBe(stocks);
 });

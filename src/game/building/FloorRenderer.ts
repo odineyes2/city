@@ -16,7 +16,17 @@ export function drawFloors(layout: BuildingLayout) {
       alpha: 0.1,
     });
   }
-  c.addChild(label("DAWN / TRANSIT REFUGE", 184, 20, 17, 0xb9c4a1));
+  c.addChild(
+    label(
+      layout.buildingId === 0
+        ? "DAWN / TRANSIT REFUGE"
+        : "OUTPOST / BUILDING SECTION",
+      184,
+      20,
+      17,
+      0xb9c4a1,
+    ),
+  );
   c.addChild(label("구조 단면 · 층별 독립 생산 없음", 780, 25, 12, 0x8fa18b));
   for (const floor of layout.floors) {
     rect(g, 170, floor.y - 6, 925, 6, 0x858b70);
