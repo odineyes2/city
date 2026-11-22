@@ -1,3 +1,4 @@
+import GameShell from "./game/GameShell";
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -500,6 +501,7 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
   return (
+    <GameShell game={game} act={act} step={()=>publish(advance(gameRef.current))} selected={selected} onSelect={setSelected} notice={notice} saveError={saveError}>
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
@@ -1671,5 +1673,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </GameShell>
   );
 }
