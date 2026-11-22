@@ -12,6 +12,7 @@ const types = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".ico": "image/x-icon",
   ".woff2": "font/woff2",
 };
@@ -57,7 +58,7 @@ export function createAppServer(root = resolve(project, "dist")) {
           JSON.stringify({
             ok: true,
             app: "city",
-            version: "0.3.2",
+            version: "0.3.3",
             assets: assets.length,
           }),
           types[".json"],

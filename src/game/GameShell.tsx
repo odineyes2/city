@@ -18,6 +18,7 @@ import OverlayHost from "./OverlayHost";
 import OverlayHeader from "./OverlayHeader";
 import { useOverlayNavigation } from "./useOverlayNavigation";
 import "./world.css";
+import GuideDialogue from "./guide/GuideDialogue";
 const CityView = lazy(() => import("./city/CityView"));
 const BuildingView = lazy(() => import("./building/BuildingView"));
 export interface WorldProps {
@@ -131,6 +132,8 @@ export default function GameShell({
           step={step}
           feedback={presentation.feedback}
         />
+        <GuideDialogue key={game.campaignId} game={game} presentation={presentation} active={active}
+          onNavigate={(next)=>{if(next==="building") {const home=presentation.city.find(b=>b.owned);if(home) onSelect(home.id);} onView(next);}} />
         <div className="global-nav-slot" hidden={!active}>
           <GameNavigation view={view} onView={onView} />
         </div>

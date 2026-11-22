@@ -1,0 +1,17 @@
+.guide-host{position:absolute;right:24px;bottom:84px;width:min(460px,calc(100vw - 48px));z-index:24;pointer-events:auto}
+.guide-host[hidden]{display:none}
+.guide-dialogue{border:1px solid #78856c;background:#17231ff5;border-radius:8px;box-shadow:0 12px 32px #0005;overflow:hidden;color:#e4e6d9}
+.guide-dialogue header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #66745a66}
+.guide-dialogue header span{display:flex;align-items:center;gap:12px}.guide-dialogue header small{color:#aebaa7;font-size:11px}
+.guide-dialogue button,.guide-launcher{min-height:40px;color:#dfe6cf;background:#22352b;border:1px solid #74836988;border-radius:5px;padding:7px 10px;font:inherit;font-size:12px;cursor:pointer}
+.guide-dialogue header button{display:grid;place-items:center;min-width:40px;padding:6px;background:none;border:0}
+.guide-scene{display:flex;align-items:stretch;min-height:158px;max-height:34dvh;overflow:auto}
+.guide-portrait{width:112px;flex-shrink:0;object-fit:cover;object-position:center 24%;background:#252e2b}
+.guide-portrait-unavailable{width:112px;flex-shrink:0;padding:16px;font-size:14px;background:#25342b}.guide-portrait-unavailable small{font-size:11px}
+.guide-speech{padding:14px;min-width:0}.guide-speech h2{margin:0 0 8px;font-size:14px;color:#d2c69e}.guide-speech p{margin:0;font-size:13px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+.guide-actions,.guide-topics{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid #66745a44}
+.guide-actions small{margin-right:auto;font-size:11px;color:#aebaa7}.guide-actions button{display:flex;align-items:center;gap:4px}.guide-topics button[aria-pressed=true]{border-color:#c4c99c;color:#e6e9c9}
+.guide-dialogue .guide-destination{display:block;width:calc(100% - 24px);margin:0 12px 12px;text-align:center}
+.guide-launcher{display:flex;align-items:center;gap:8px;margin-left:auto;background:#1a2b21ed}
+.guide-host :focus-visible{outline:2px solid #cbd7ab;outline-offset:2px}
+@media(max-width:700px){.guide-host{right:12px;bottom:74px;width:calc(100vw - 24px)}.guide-portrait{width:88px}.guide-scene{max-height:30dvh;min-height:128px}.guide-speech{padding:10px}.guide-speech p{font-size:12px}.guide-actions,.guide-topics{padding:8px}.guide-dialogue button{font-size:11px}}

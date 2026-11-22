@@ -1,0 +1,45 @@
+{
+  "character": "서린",
+  "source": "charchat administrator creative tools",
+  "brief_id": 1,
+  "studio_actor_id": 1,
+  "model": "animagine",
+  "lora": "charchat_actor1_animagine_20261118093522.safetensors",
+  "strength": 0.7,
+  "seed": 734921,
+  "selected_asset": 2,
+  "assets": [
+    {
+      "file": "seorin-neutral.webp",
+      "asset_id": 2,
+      "pose": "neutral",
+      "source_sha256": "b2f655f018f5c1cb05b0edf90346db407bf35675d6452dd7e9f8de92475465c1",
+      "sha256": "ac2fff3a453d26461e62b24c4eebfe9d223fc7aa3a82acdb96ed7f929fd42731",
+      "bytes": 79334
+    },
+    {
+      "file": "seorin-welcome.webp",
+      "asset_id": 3,
+      "pose": "welcome",
+      "source_sha256": "482fc47f436eebf797f2c4d0c513b8fa1e904585ab023813bf7115da0e3f3734",
+      "sha256": "c56a46bc997bda05cf32599a4080493c7cb0f9c104375ba73400b0526ea3b856",
+      "bytes": 84662
+    },
+    {
+      "file": "seorin-concern.webp",
+      "asset_id": 4,
+      "pose": "concern",
+      "source_sha256": "8f0e3b05a67cea713da57dc5da0b500b50664682126644e08a70268ee57b9f63",
+      "sha256": "e4104a2b9578cb661585c4107fd1577cc4bda3a79999d535f81545f1a30cbd8f",
+      "bytes": 80206
+    },
+    {
+      "file": "seorin-explain.webp",
+      "asset_id": 5,
+      "pose": "explain",
+      "source_sha256": "efa0eabcb449b5663a4231b9b2f222bc87b5359d0b61c60bbc9b53ff3b0d384e",
+      "sha256": "155861e93eb6815e3885730dcbabce147950c08d7367ddde6022897fb5d0b88a",
+      "bytes": 80906
+    }
+  ]
+}
