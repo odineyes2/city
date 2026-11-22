@@ -26,7 +26,7 @@ npm run preview     # 빌드 결과 로컬 서비스, 기본 4173 포트
 ## 운영과 dev 프로젝트 등록
 
 - 프로젝트 키: `CITY`, 이름: `잔해의 도시 (ASHEN CITY)`
-- 운영 주소: `https://city.lomebrote.com` (dev 관리자 화면에서 등록·서비스 연결 필요)
+- 운영 주소: https://city.lomebrote.com (2026-11-22 CITY 등록·HTTPS 연결 완료)
 - PM2 앱: `city`, 로컬 포트: `8402`, 실행 파일 생성 방식: **기존 파일만 사용**
 - Local path: `C:\Users\Simon Lomebrote\Projects\apocalypse-city`
 - 준비 상태: `/api/health`에서 실제 `dist/index.html`과 연결된 게임 번들을 검사합니다.
@@ -39,7 +39,9 @@ npm start  # 운영 정적 서버, http://127.0.0.1:8402
 
 상시 실행은 `npx --no-install pm2 start ecosystem.config.js --only city`로 시작합니다. 이후 빌드 변경을 반영할 때는 `npm run build` 후 `npx --no-install pm2 restart ecosystem.config.js --only city --update-env`를 사용합니다. 게임 저장은 서버가 아닌 방문자의 브라우저에 남습니다.
 
-dev에서는 **프로젝트 추가 → 기존 저장소 등록하기**로 위 정보를 저장한 뒤 **서비스 연결**을 실행합니다. 새 프로젝트 초기 생성·유료 분석은 사용하지 않습니다. 서비스 연결이 DNS와 Cloudflare 터널 반영·외부 HTTPS 확인을 처리합니다. 공용 터널 설정을 직접 수정하지 않습니다.
+dev에는 인증된 에이전트 전용 `register_existing_project`·`connect_project_service` 경로로 등록했습니다. 관리자 브라우저 로그인이나 유료 초기 생성 없이 기존 저장소와 실행 설정을 사용합니다. 등록 소유 에이전트만 저장된 설정으로 연결할 수 있습니다. 서비스 연결이 DNS와 Cloudflare 터널의 안전한 교체·외부 HTTPS 확인을 처리합니다. 관리자 화면에서도 관리할 수 있으며 공용 터널 설정을 직접 수정하지 않습니다.
+
+외부 HTTPS에서 게임 HTML·JavaScript·CSS·`/api/health`의 HTTP 200 응답을 확인했습니다. 화면 자동 검증은 수행하지 않았습니다.
 
 ## 실제 플레이 경로
 
