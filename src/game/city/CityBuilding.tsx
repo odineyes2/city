@@ -1,6 +1,6 @@
 import {memo,useMemo,useRef} from 'react';
 import {useFrame,type ThreeEvent} from '@react-three/fiber';
-import {Html} from '@react-three/drei';
+import CityLabel from './CityLabel';
 import {Group} from 'three';
 import type {CityBuildingPresentation} from '../presentation/GamePresentation';
 import {BoxBatch,Block,Cylinder,noise,type BoxItem} from './CityGeometry';
@@ -46,7 +46,7 @@ function CityBuilding({building:b,selected,paused,onSelect}:{building:CityBuildi
   {b.status==='restoring'&&<><BoxBatch items={Array.from({length:5},(_,i)=>({position:[-w*.55+i*w*.275,h*.4,d*.6] as [number,number,number],scale:[.1,h*.8,.1] as [number,number,number],color:'#a49c76'}))}/>{[.2,.45,.7].map(y=><Block key={y} at={[0,h*y,d*.6]} size={[w*1.2,.13,.7]} color="#9a8d64"/>)}<Cylinder at={[w*.7,2,d*.55]} radius={.1} height={3.5}/><Block at={[w*.7,3.4,d*.55]} size={[1,.4,.4]} color="#d4b675" emissive="#b4893f"/></>}
   {b.active&&b.facility==='farm'&&<><Block at={[0,h+.4,d*.15]} size={[w*.6,.8,d*.55]} color="#557f50"/>{[-2,0,2].map(x=><Block key={x} at={[x,h+1,d*.15]} size={[.5,.8,d*.5]} color="#7a9d61"/>)}</>}
   {b.active&&b.facility==='generator'&&<group position={[w*.2,h+1,0]} ref={b.type!=='tower'?roof:undefined}><Block at={[0,0,0]} size={[3,.12,.3]} color="#b0b094"/><Block at={[0,0,0]} size={[.3,.12,3]} color="#b0b094"/></group>}
-  {selected&&<><mesh position={[0,.56,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[Math.max(w,d)*.64,Math.max(w,d)*.67,48]}/><meshBasicMaterial color="#c6d9a4" transparent opacity={.75} depthWrite={false}/></mesh><Html center position={[0,h+5,0]} zIndexRange={[8,0]}><div className="city-label">{b.name}<small>{b.owner} · {b.statusName}</small></div></Html></>}
+  {selected&&<><mesh position={[0,.56,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[Math.max(w,d)*.64,Math.max(w,d)*.67,48]}/><meshBasicMaterial color="#c6d9a4" transparent opacity={.75} depthWrite={false}/></mesh><CityLabel name={b.name} detail={`${b.owner} · ${b.statusName}`} height={h}/></>}
  </group>;
 }
 export default memo(CityBuilding,(a,b)=>a.selected===b.selected&&a.paused===b.paused&&a.onSelect===b.onSelect&&a.building.status===b.building.status&&a.building.owner===b.building.owner&&a.building.facility===b.building.facility&&a.building.progress===b.building.progress&&a.building.powered===b.building.powered&&a.building.workerCount===b.building.workerCount&&a.building.condition===b.building.condition);

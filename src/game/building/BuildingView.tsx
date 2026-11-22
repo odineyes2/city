@@ -13,7 +13,7 @@ export default function BuildingView({presentation,onView}:WorldProps&{presentat
   void app.init({width:host.current?.clientWidth??1000,height:host.current?.clientHeight??700,preference:'webgl',background:0x15241e,antialias:true,resolution:Math.min(window.devicePixelRatio||1,1.5),autoDensity:true}).then(()=>{if(cancelled||!host.current){app.destroy(true,{children:true});return;}host.current.appendChild(app.canvas);created=new BuildingScene(app,host.current,latest.current,{room:id=>{setRoom(id);setPerson('');},resident:id=>{setPerson(id);setRoom('');},metrics:setMetrics,motion:setMotion});scene.current=created;setReady(true);}).catch(e=>{if(!cancelled){setError('건물 그래픽을 초기화하지 못했습니다.');visualDiagnostics.errors.push(String(e));}});
   return()=>{cancelled=true;created?.destroy();scene.current=null;};
  },[b.id,b.accessible]);
- useEffect(()=>{scene.current?.update(b,room);},[b,room]);
+ useEffect(()=>{scene.current?.update(b,room,person);},[b,room,person]);
  const selectedRoom=b.rooms.find(r=>r.id===room),selectedPerson=b.residents.find(r=>r.id===person),visible=b.residents.filter(r=>r.present);
  return <div className="building-view" data-testid="building-view" data-building-id={b.id} data-ready={ready} data-motion-ticks={motion} data-paused={b.paused}>
   <div className="building-canvas" ref={host} tabIndex={0} aria-label="건물 단면 · 드래그 이동, 휠 확대" onKeyDown={e=>{const d:Record<string,[number,number]>={ArrowLeft:[50,0],ArrowRight:[-50,0],ArrowUp:[0,50],ArrowDown:[0,-50]};if(d[e.key]){e.preventDefault();scene.current?.pan(...d[e.key]);}if(e.key==='+'||e.key==='=')scene.current?.zoom(1.2);if(e.key==='-')scene.current?.zoom(1/1.2);if(e.key.toLowerCase()==='f')scene.current?.fit();}}/>
