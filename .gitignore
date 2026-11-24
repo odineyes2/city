@@ -8,3 +8,10 @@ dist/
 
 .release-stage/
 .release-prev-*/
+
+# 화면 캡처 결과물 — 저장소에 넣지 않는다
+.ui-captures/
+/screens-*/
+/shots/
+tests/shots/
+/*.png
